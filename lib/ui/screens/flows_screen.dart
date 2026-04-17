@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../models/entities/message.dart';
+import '../../state/archive_controller.dart';
 import '../../state/flow_index.dart';
 import '../widgets/flow_painter.dart';
 
@@ -153,24 +155,38 @@ class _FlowsScreenState extends ConsumerState<FlowsScreen>
               filter: _filter,
             ),
             Expanded(
-              child: GestureDetector(
-                onTapUp: (details) {
-                  final painter = FlowPainter(
-                    data: graphData,
-                    selectedKey: _selectedKey,
-                    theme: theme.colorScheme,
-                  );
-                  final hit = painter.nodeAt(details.localPosition);
-                  setState(() => _selectedKey = hit);
-                },
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: FlowPainter(
-                    data: graphData,
-                    selectedKey: _selectedKey,
-                    theme: theme.colorScheme,
+              child: Stack(
+                children: [
+                  GestureDetector(
+                    onTapUp: (details) {
+                      final painter = FlowPainter(
+                        data: graphData,
+                        selectedKey: _selectedKey,
+                        theme: theme.colorScheme,
+                      );
+                      final hit = painter.nodeAt(details.localPosition);
+                      setState(() => _selectedKey = hit);
+                    },
+                    child: CustomPaint(
+                      size: Size.infinite,
+                      painter: FlowPainter(
+                        data: graphData,
+                        selectedKey: _selectedKey,
+                        theme: theme.colorScheme,
+                      ),
+                    ),
                   ),
-                ),
+                  if (_selectedKey != null)
+                    Positioned(
+                      right: 16,
+                      bottom: 16,
+                      child: FloatingActionButton.extended(
+                        onPressed: () => _openThread(context, index, _selectedKey!),
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        label: const Text('View messages'),
+                      ),
+                    ),
+                ],
               ),
             ),
             _Controls(
@@ -274,6 +290,34 @@ class _FlowsScreenState extends ConsumerState<FlowsScreen>
     );
   }
 
+  void _openThread(BuildContext context, FlowIndex index, String contactKey) {
+    final contact = index.contacts[contactKey];
+    if (contact == null) return;
+    final archive = ref.read(archiveControllerProvider).valueOrNull;
+    if (archive == null) return;
+    final indices = index.messageIndicesByContact[contactKey] ?? const [];
+    final messages = [for (final i in indices) archive.messages[i]]
+      ..sort((a, b) => (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)));
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.8,
+        minChildSize: 0.4,
+        maxChildSize: 1.0,
+        builder: (ctx, controller) => _ContactThread(
+          meName: index.meName,
+          contact: contact,
+          messages: messages,
+          controller: controller,
+        ),
+      ),
+    );
+  }
+
   _WindowStats _windowStats(FlowIndex index, DateTime start, DateTime end, _Filter filter) {
     final startIdx = index.indexAtOrAfter(start);
     final endIdx = index.indexAtOrAfter(end);
@@ -337,6 +381,124 @@ class _Header extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ContactThread extends StatelessWidget {
+  const _ContactThread({
+    required this.meName,
+    required this.contact,
+    required this.messages,
+    required this.controller,
+  });
+
+  final String meName;
+  final FlowContact contact;
+  final List<Message> messages;
+  final ScrollController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Row(
+            children: [
+              CircleAvatar(child: Text(_initials(contact.name))),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(contact.name,
+                        style: theme.textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      '${contact.totalOutgoing} sent · ${contact.totalIncoming} received · ${messages.length} in thread',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: messages.isEmpty
+              ? const Center(child: Text('No messages found.'))
+              : ListView.builder(
+                  controller: controller,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (ctx, i) {
+                    final m = messages[i];
+                    final fromMe = m.from == meName;
+                    return Align(
+                      alignment: fromMe
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: fromMe
+                                  ? theme.colorScheme.primaryContainer
+                                  : theme.colorScheme.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: fromMe
+                                  ? CrossAxisAlignment.end
+                                  : CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  m.from,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                if (m.subject.isNotEmpty)
+                                  Text(
+                                    m.subject,
+                                    style: theme.textTheme.labelMedium,
+                                  ),
+                                const SizedBox(height: 2),
+                                SelectableText(m.content),
+                                const SizedBox(height: 2),
+                                Text(
+                                  m.date == null
+                                      ? ''
+                                      : DateFormat.yMMMd().add_jm().format(m.date!),
+                                  style: theme.textTheme.labelSmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+String _initials(String name) {
+  final parts = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  if (parts.isEmpty) return '?';
+  if (parts.length == 1) return parts.first[0].toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 class _Controls extends StatelessWidget {

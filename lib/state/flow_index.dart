@@ -15,6 +15,7 @@ class FlowIndex {
     required this.meProfileUrl,
     required this.events,
     required this.contacts,
+    required this.messageIndicesByContact,
     required this.minDate,
     required this.maxDate,
   });
@@ -28,6 +29,12 @@ class FlowIndex {
 
   /// Every contact the user has exchanged messages with, keyed by canonical id.
   final Map<String, FlowContact> contacts;
+
+  /// contactKey -> indices into `archive.messages`. Enables instant lookup
+  /// of every message exchanged with a selected contact without re-scanning.
+  /// Indices are unique per contact (de-duplicated across group-message
+  /// recipients) but not sorted — the consumer sorts by date.
+  final Map<String, List<int>> messageIndicesByContact;
 
   final DateTime minDate;
   final DateTime maxDate;
@@ -114,8 +121,12 @@ FlowIndex _buildFlowIndex(LinkedInArchive archive) {
   final me = _detectMe(archive);
   final events = <FlowEvent>[];
   final contacts = <String, FlowContact>{};
+  // Using Sets during build dedupes indices when a group message to N
+  // recipients includes the same contact multiple times.
+  final indicesByContact = <String, Set<int>>{};
 
-  for (final m in archive.messages) {
+  for (var i = 0; i < archive.messages.length; i++) {
+    final m = archive.messages[i];
     final date = m.date;
     if (date == null) continue;
     final outgoing = _isFromMe(m, me);
@@ -133,6 +144,7 @@ FlowIndex _buildFlowIndex(LinkedInArchive archive) {
           c.firstOutgoing = date;
         }
         events.add(FlowEvent(date: date, contactKey: key.id, outgoing: true));
+        indicesByContact.putIfAbsent(key.id, () => <int>{}).add(i);
       }
     } else {
       final key = _senderKey(m);
@@ -146,6 +158,7 @@ FlowIndex _buildFlowIndex(LinkedInArchive archive) {
         c.firstIncoming = date;
       }
       events.add(FlowEvent(date: date, contactKey: key.id, outgoing: false));
+      indicesByContact.putIfAbsent(key.id, () => <int>{}).add(i);
     }
   }
 
@@ -159,6 +172,10 @@ FlowIndex _buildFlowIndex(LinkedInArchive archive) {
     meProfileUrl: me.url,
     events: events,
     contacts: contacts,
+    messageIndicesByContact: {
+      for (final entry in indicesByContact.entries)
+        entry.key: entry.value.toList(),
+    },
     minDate: minDate,
     maxDate: maxDate,
   );
