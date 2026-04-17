@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/archive.dart';
+import '../services/cache_service.dart';
 import '../services/parse_service.dart';
+
+final cacheServiceProvider = Provider<CacheService>((_) => CacheService());
 
 /// Lightweight progress signal exposed to UI while an archive is parsing.
 @immutable
@@ -37,7 +42,17 @@ final archiveControllerProvider =
 ///   - `loadFromBytes(bytes)` — direct byte injection (used by tests and cache).
 class ArchiveController extends AsyncNotifier<LinkedInArchive?> {
   @override
-  Future<LinkedInArchive?> build() async => null;
+  Future<LinkedInArchive?> build() async {
+    // Auto-restore from the cache on app boot.
+    try {
+      final bytes = await ref.read(cacheServiceProvider).load();
+      if (bytes == null) return null;
+      return await parseArchive(bytes);
+    } catch (_) {
+      // A corrupted cache shouldn't block the app; just fall through.
+      return null;
+    }
+  }
 
   Future<void> loadFromPicker() async {
     final result = await FilePicker.platform.pickFiles(
@@ -47,17 +62,17 @@ class ArchiveController extends AsyncNotifier<LinkedInArchive?> {
     );
     final bytes = result?.files.single.bytes;
     if (bytes == null) return;
-    await loadFromBytes(bytes);
+    await loadFromBytes(bytes, persist: true);
   }
 
   Future<void> loadFromAsset({
     String path = 'fixtures/sample_export.zip',
   }) async {
     final data = await rootBundle.load(path);
-    await loadFromBytes(data.buffer.asUint8List());
+    await loadFromBytes(data.buffer.asUint8List(), persist: true);
   }
 
-  Future<void> loadFromBytes(Uint8List bytes) async {
+  Future<void> loadFromBytes(Uint8List bytes, {bool persist = false}) async {
     state = const AsyncValue<LinkedInArchive?>.loading();
     try {
       final archive = await parseArchive(
@@ -71,6 +86,10 @@ class ArchiveController extends AsyncNotifier<LinkedInArchive?> {
         },
       );
       state = AsyncValue.data(archive);
+      if (persist) {
+        // Fire-and-forget; cache failures shouldn't surface as UI errors.
+        unawaited(ref.read(cacheServiceProvider).save(bytes));
+      }
     } catch (err, st) {
       state = AsyncValue.error(err, st);
     } finally {
@@ -78,8 +97,9 @@ class ArchiveController extends AsyncNotifier<LinkedInArchive?> {
     }
   }
 
-  void clear() {
+  Future<void> clear() async {
     state = const AsyncValue<LinkedInArchive?>.data(null);
     ref.read(archiveProgressProvider.notifier).state = null;
+    await ref.read(cacheServiceProvider).clear();
   }
 }
