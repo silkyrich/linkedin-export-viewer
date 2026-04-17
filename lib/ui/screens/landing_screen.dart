@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/archive_controller.dart';
+import '../shell/dropzone_stub.dart'
+    if (dart.library.js_interop) '../shell/dropzone_web.dart';
 
 /// First screen a visitor sees. Offers two entry points:
 ///   1. Upload your own LinkedIn export zip.
@@ -18,42 +20,60 @@ class LandingScreen extends ConsumerWidget {
     final archiveState = ref.watch(archiveControllerProvider);
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'LinkedIn Export Viewer',
-                    style: theme.textTheme.displaySmall,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Drop the zip LinkedIn emailed you. Everything stays in '
-                    'this browser tab — no server, no upload, no tracking.',
-                    style: theme.textTheme.bodyLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
-                  _PickerTile(state: archiveState),
-                  const SizedBox(height: 16),
-                  _DemoTile(state: archiveState),
-                  const SizedBox(height: 32),
-                  Text(
-                    'How to get your export: linkedin.com → Me → Settings → '
-                    'Data privacy → Get a copy of your data.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+      body: DropZone(
+        onDrop: (bytes, name) async {
+          if (!context.mounted) return;
+          final proceed = await _maybeConfirmLarge(context, bytes.length);
+          if (!proceed) return;
+          await ref
+              .read(archiveControllerProvider.notifier)
+              .loadFromBytes(bytes, persist: true);
+        },
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'LinkedIn Export Viewer',
+                      style: theme.textTheme.displaySmall,
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Text(
+                      'Drop the zip LinkedIn emailed you. Everything stays in '
+                      'this browser tab — no server, no upload, no tracking.',
+                      style: theme.textTheme.bodyLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    _PickerTile(state: archiveState),
+                    const SizedBox(height: 16),
+                    _DemoTile(state: archiveState),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Tip: drop the zip anywhere on this page.',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    Text(
+                      'How to get your export: linkedin.com → Me → Settings → '
+                      'Data privacy → Get a copy of your data.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -61,6 +81,32 @@ class LandingScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<bool> _maybeConfirmLarge(BuildContext context, int byteLength) async {
+  if (byteLength <= ArchiveController.largeArchiveThreshold) return true;
+  final mib = (byteLength / (1024 * 1024)).toStringAsFixed(1);
+  final proceed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Large archive'),
+      content: Text(
+        'This zip is $mib MB. Parsing it will stay in your browser but '
+        'may freeze the tab for a few seconds on a phone. Continue?',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Continue'),
+        ),
+      ],
+    ),
+  );
+  return proceed == true;
 }
 
 class _PickerTile extends ConsumerWidget {
