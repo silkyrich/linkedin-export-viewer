@@ -37,6 +37,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # assets enabled in Phase 0c once tool/generate_fixture.dart produces the zip
-  # assets:
-  #   - fixtures/sample_export.zip
+  assets:
+    - fixtures/sample_export.zip
