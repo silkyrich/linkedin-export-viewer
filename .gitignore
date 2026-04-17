@@ -2,6 +2,8 @@
 Basic_LinkedInDataExport_*/
 Basic_LinkedInDataExport_*.zip
 *.csv
+# exceptions: synthetic fixtures are obviously-fake and safe to commit
+!fixtures/**/*.csv
 
 # macOS
 .DS_Store
@@ -14,7 +16,12 @@ Basic_LinkedInDataExport_*.zip
 .pub-cache/
 .pub/
 build/
-pubspec.lock
+# pubspec.lock is committed for apps (reproducible builds); uncomment to ignore for libraries
+# pubspec.lock
+
+# Generated worker bundle — built from lib/services/worker/parse_worker.dart
+web/worker.dart.js
+web/worker.dart.js.map
 
 # IDE
 .idea/
