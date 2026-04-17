@@ -31,6 +31,9 @@ dependencies:
   # Caching
   idb_shim: ^2.6.1             # cross-browser IndexedDB
 
+  # Web interop (for Articles iframe sandboxing)
+  web: ^1.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

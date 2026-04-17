@@ -3,12 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../state/archive_controller.dart';
+import '../ui/screens/account_screen.dart';
+import '../ui/screens/activity_screen.dart';
+import '../ui/screens/career_screen.dart';
+import '../ui/screens/content_screen.dart';
 import '../ui/screens/landing_screen.dart';
+import '../ui/screens/learning_screen.dart';
 import '../ui/screens/loading_screen.dart';
 import '../ui/screens/me_screen.dart';
 import '../ui/screens/messages_screen.dart';
 import '../ui/screens/network_screen.dart';
 import '../ui/screens/raw_file_screen.dart';
+import '../ui/screens/skills_education_screen.dart';
 import '../ui/shell/responsive_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -39,6 +45,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/me', builder: (c, s) => const MeScreen()),
           GoRoute(path: '/network', builder: (c, s) => const NetworkScreen()),
           GoRoute(path: '/messages', builder: (c, s) => const MessagesScreen()),
+          GoRoute(path: '/career', builder: (c, s) => const CareerScreen()),
+          GoRoute(path: '/learning', builder: (c, s) => const LearningScreen()),
+          GoRoute(path: '/skills', builder: (c, s) => const SkillsEducationScreen()),
+          GoRoute(path: '/content', builder: (c, s) => const ContentScreen()),
+          GoRoute(path: '/activity', builder: (c, s) => const ActivityScreen()),
+          GoRoute(path: '/account', builder: (c, s) => const AccountScreen()),
           GoRoute(
             path: '/raw/:path(.*)',
             builder: (c, s) => RawFileScreen(
