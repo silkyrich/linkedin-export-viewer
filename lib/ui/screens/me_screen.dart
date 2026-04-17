@@ -5,6 +5,7 @@ import '../../models/archive.dart';
 import '../../models/parsed_file.dart';
 import '../../state/archive_controller.dart';
 import '../widgets/kv_card.dart';
+import '../widgets/summary_card.dart';
 
 /// "Me" — single-record data LinkedIn holds about the viewer:
 /// Profile, Profile Summary, Registration, Email Addresses, PhoneNumbers,
@@ -21,6 +22,7 @@ class MeScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
+        const SummaryCard(),
         _singleRowCard(archive, 'Profile.csv', 'Profile'),
         _singleRowCard(archive, 'Profile Summary.csv', 'Profile Summary'),
         _singleRowCard(archive, 'Registration.csv', 'Registration'),
