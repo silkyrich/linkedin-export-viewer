@@ -68,14 +68,40 @@ class FlowContact {
     required this.name,
     this.totalOutgoing = 0,
     this.totalIncoming = 0,
+    this.firstOutgoing,
+    this.firstIncoming,
   });
 
   final String key;
   final String name;
   int totalOutgoing;
   int totalIncoming;
+  DateTime? firstOutgoing;
+  DateTime? firstIncoming;
 
   int get total => totalOutgoing + totalIncoming;
+
+  /// True when the earliest message between us came from them, or when
+  /// we've only ever received from them.
+  bool get theyApproached {
+    if (firstIncoming == null) return false;
+    if (firstOutgoing == null) return true;
+    return firstIncoming!.isBefore(firstOutgoing!);
+  }
+
+  /// True when the earliest message between us was sent by us.
+  bool get iApproached {
+    if (firstOutgoing == null) return false;
+    if (firstIncoming == null) return true;
+    return firstOutgoing!.isBefore(firstIncoming!);
+  }
+
+  /// Both sides ever exchanged messages.
+  bool get responded => totalOutgoing > 0 && totalIncoming > 0;
+
+  /// Only one side ever sent — either a cold-DM you never replied to, or
+  /// outreach from you that got no response.
+  bool get noResponse => !responded;
 }
 
 final flowIndexProvider = Provider<FlowIndex?>((ref) {
@@ -103,6 +129,9 @@ FlowIndex _buildFlowIndex(LinkedInArchive archive) {
           () => FlowContact(key: key.id, name: key.name),
         );
         c.totalOutgoing++;
+        if (c.firstOutgoing == null || date.isBefore(c.firstOutgoing!)) {
+          c.firstOutgoing = date;
+        }
         events.add(FlowEvent(date: date, contactKey: key.id, outgoing: true));
       }
     } else {
@@ -113,6 +142,9 @@ FlowIndex _buildFlowIndex(LinkedInArchive archive) {
         () => FlowContact(key: key.id, name: key.name),
       );
       c.totalIncoming++;
+      if (c.firstIncoming == null || date.isBefore(c.firstIncoming!)) {
+        c.firstIncoming = date;
+      }
       events.add(FlowEvent(date: date, contactKey: key.id, outgoing: false));
     }
   }

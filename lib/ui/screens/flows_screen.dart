@@ -9,10 +9,10 @@ import '../widgets/flow_painter.dart';
 
 /// Animated message-flow timeline.
 ///
-/// A radial graph with "me" at the center and your top message partners
-/// around the ring. A time slider + window size chips control which slice
-/// of the archive is active; the edge thickness for each contact reflects
-/// how many messages you exchanged with them inside the window.
+/// Radial graph: "me" at the center, your top message partners on a ring.
+/// Contact angles are **locked by lifetime rank** so the same person
+/// sits in the same spot regardless of the window — that way scrubbing
+/// the slider only changes edge thickness and node shading, not layout.
 class FlowsScreen extends ConsumerStatefulWidget {
   const FlowsScreen({super.key});
 
@@ -29,7 +29,7 @@ extension on _Window {
         _Window.month => 'Month',
         _Window.quarter => 'Quarter',
         _Window.year => 'Year',
-        _Window.all => 'All time',
+        _Window.all => 'All',
       };
 
   Duration? get duration => switch (this) {
@@ -42,16 +42,36 @@ extension on _Window {
       };
 }
 
+enum _Filter { all, theyApproached, iApproached, responded, noResponse }
+
+extension on _Filter {
+  String get label => switch (this) {
+        _Filter.all => 'All',
+        _Filter.theyApproached => 'They approached',
+        _Filter.iApproached => 'I approached',
+        _Filter.responded => 'Responded',
+        _Filter.noResponse => 'No response',
+      };
+
+  bool matches(FlowContact c) => switch (this) {
+        _Filter.all => true,
+        _Filter.theyApproached => c.theyApproached,
+        _Filter.iApproached => c.iApproached,
+        _Filter.responded => c.responded,
+        _Filter.noResponse => c.noResponse,
+      };
+}
+
 class _FlowsScreenState extends ConsumerState<FlowsScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _playController;
   _Window _window = _Window.month;
+  _Filter _filter = _Filter.all;
   double _position = 1.0; // 0..1 along the archive's full date span
+  int _nodeCount = 30;
   String? _selectedKey;
-  double _speed = 1.0; // multiplier; 1.0 = 2 weeks of data per real second
+  double _speed = 1.0;
   bool _playing = false;
-
-  static const _maxNodes = 60;
 
   @override
   void initState() {
@@ -107,25 +127,30 @@ class _FlowsScreenState extends ConsumerState<FlowsScreen>
       return const Center(child: Text('No dated messages to graph.'));
     }
 
-    final span = index.maxDate.difference(index.minDate);
     final windowEnd = _dateAtPosition(index, _position);
     final windowStart = _window.duration == null
         ? index.minDate
         : windowEnd.subtract(_window.duration!);
 
+    // Rank contacts *once* by lifetime total and cache; positions are
+    // derived from this rank so the wheel doesn't reshuffle per window.
+    final ranked = index.contacts.values.toList()
+      ..sort((a, b) => b.total.compareTo(a.total));
+    final visible = ranked.where(_filter.matches).take(_nodeCount).toList();
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final graphData = _layout(index, windowStart, windowEnd, constraints.biggest);
-        final stats = _windowStats(index, windowStart, windowEnd);
+        final graphData = _layout(index, visible, ranked, windowStart, windowEnd, constraints.biggest);
+        final stats = _windowStats(index, windowStart, windowEnd, _filter);
 
         return Column(
           children: [
             _Header(
               start: windowStart,
               end: windowEnd,
-              totalMessages: stats.messageCount,
+              messageCount: stats.messageCount,
               uniqueContacts: stats.uniqueContacts,
-              fullSpan: span,
+              filter: _filter,
             ),
             Expanded(
               child: GestureDetector(
@@ -159,6 +184,12 @@ class _FlowsScreenState extends ConsumerState<FlowsScreen>
               }),
               window: _window,
               onWindow: (w) => setState(() => _window = w),
+              filter: _filter,
+              onFilter: (f) => setState(() => _filter = f),
+              nodeCount: _nodeCount,
+              onNodeCount: (n) => setState(() => _nodeCount = n),
+              visibleCount: visible.length,
+              filteredTotal: ranked.where(_filter.matches).length,
               playing: _playing,
               onTogglePlay: _togglePlay,
               speed: _speed,
@@ -186,11 +217,13 @@ class _FlowsScreenState extends ConsumerState<FlowsScreen>
 
   FlowGraphData _layout(
     FlowIndex index,
+    List<FlowContact> visible,
+    List<FlowContact> ranked,
     DateTime windowStart,
     DateTime windowEnd,
     Size size,
   ) {
-    // Count events per contact inside the window.
+    // Window-scoped counts per contact.
     final startIdx = index.indexAtOrAfter(windowStart);
     final endIdx = index.indexAtOrAfter(windowEnd);
     final windowOut = <String, int>{};
@@ -204,27 +237,24 @@ class _FlowsScreenState extends ConsumerState<FlowsScreen>
       }
     }
 
-    // Rank contacts: prefer those active in the window, fall back to
-    // lifetime total so the layout doesn't collapse on quiet windows.
-    final contacts = index.contacts.values.toList();
-    contacts.sort((a, b) {
-      final aw = (windowOut[a.key] ?? 0) + (windowIn[a.key] ?? 0);
-      final bw = (windowOut[b.key] ?? 0) + (windowIn[b.key] ?? 0);
-      if (aw != bw) return bw.compareTo(aw);
-      return b.total.compareTo(a.total);
-    });
-    final top = contacts.take(_maxNodes).toList();
-
     final center = Offset(size.width / 2, size.height / 2);
     final ringRadius = max(60.0, min(size.width, size.height) * 0.42);
-    final maxLifetime = top.isEmpty
+    final maxLifetime = ranked.isEmpty
         ? 1
-        : top.map((c) => c.total).reduce(max).clamp(1, 1 << 30);
+        : ranked.first.total.clamp(1, 1 << 30);
+
+    // Map each contact to its **lifetime rank** so angle is stable.
+    final rankByKey = <String, int>{};
+    for (var i = 0; i < ranked.length; i++) {
+      rankByKey[ranked[i].key] = i;
+    }
+    final slots = min(ranked.length, 60); // ring can hold up to 60 angles
 
     final nodes = <FlowNode>[];
-    for (var i = 0; i < top.length; i++) {
-      final c = top[i];
-      final angle = (i / top.length) * 2 * pi - pi / 2;
+    for (final c in visible) {
+      final rank = rankByKey[c.key] ?? 0;
+      if (rank >= slots) continue;
+      final angle = (rank / slots) * 2 * pi - pi / 2;
       final position = center + Offset(cos(angle), sin(angle)) * ringRadius;
       final baseRadius = 6 + log(c.total + 1) / log(maxLifetime + 1) * 14;
       nodes.add(FlowNode(
@@ -244,17 +274,20 @@ class _FlowsScreenState extends ConsumerState<FlowsScreen>
     );
   }
 
-  _WindowStats _windowStats(FlowIndex index, DateTime start, DateTime end) {
+  _WindowStats _windowStats(FlowIndex index, DateTime start, DateTime end, _Filter filter) {
     final startIdx = index.indexAtOrAfter(start);
     final endIdx = index.indexAtOrAfter(end);
     final unique = <String>{};
+    var count = 0;
     for (var i = startIdx; i < endIdx; i++) {
-      unique.add(index.events[i].contactKey);
+      final e = index.events[i];
+      final contact = index.contacts[e.contactKey];
+      if (contact == null) continue;
+      if (!filter.matches(contact)) continue;
+      unique.add(e.contactKey);
+      count++;
     }
-    return _WindowStats(
-      messageCount: endIdx - startIdx,
-      uniqueContacts: unique.length,
-    );
+    return _WindowStats(messageCount: count, uniqueContacts: unique.length);
   }
 }
 
@@ -272,39 +305,33 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.start,
     required this.end,
-    required this.totalMessages,
+    required this.messageCount,
     required this.uniqueContacts,
-    required this.fullSpan,
+    required this.filter,
   });
 
   final DateTime start;
   final DateTime end;
-  final int totalMessages;
+  final int messageCount;
   final int uniqueContacts;
-  final Duration fullSpan;
+  final _Filter filter;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${_dateFmt.format(start)}  →  ${_dateFmt.format(end)}',
-                  style: theme.textTheme.titleSmall,
-                ),
-                Text(
-                  '$totalMessages messages · $uniqueContacts contacts in window',
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-            ),
+          Text(
+            '${_dateFmt.format(start)}  →  ${_dateFmt.format(end)}',
+            style: theme.textTheme.titleSmall,
+          ),
+          Text(
+            '$messageCount messages · $uniqueContacts contacts'
+            '${filter == _Filter.all ? '' : ' · filter: ${filter.label}'}',
+            style: theme.textTheme.bodySmall,
           ),
         ],
       ),
@@ -318,6 +345,12 @@ class _Controls extends StatelessWidget {
     required this.onPosition,
     required this.window,
     required this.onWindow,
+    required this.filter,
+    required this.onFilter,
+    required this.nodeCount,
+    required this.onNodeCount,
+    required this.visibleCount,
+    required this.filteredTotal,
     required this.playing,
     required this.onTogglePlay,
     required this.speed,
@@ -328,6 +361,12 @@ class _Controls extends StatelessWidget {
   final ValueChanged<double> onPosition;
   final _Window window;
   final ValueChanged<_Window> onWindow;
+  final _Filter filter;
+  final ValueChanged<_Filter> onFilter;
+  final int nodeCount;
+  final ValueChanged<int> onNodeCount;
+  final int visibleCount;
+  final int filteredTotal;
   final bool playing;
   final VoidCallback onTogglePlay;
   final double speed;
@@ -361,6 +400,23 @@ class _Controls extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
+              SegmentedButton<_Filter>(
+                segments: [
+                  for (final f in _Filter.values)
+                    ButtonSegment(value: f, label: Text(f.label)),
+                ],
+                selected: {filter},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => onFilter(s.first),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
               SegmentedButton<_Window>(
                 segments: [
                   for (final w in _Window.values)
@@ -380,6 +436,24 @@ class _Controls extends StatelessWidget {
                 selected: {speed},
                 showSelectedIcon: false,
                 onSelectionChanged: (s) => onSpeed(s.first),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text('Nodes: $visibleCount of $filteredTotal',
+                  style: Theme.of(context).textTheme.labelSmall),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Slider(
+                  value: nodeCount.toDouble(),
+                  min: 5,
+                  max: 60,
+                  divisions: 11,
+                  label: '$nodeCount',
+                  onChanged: (v) => onNodeCount(v.round()),
+                ),
               ),
             ],
           ),
