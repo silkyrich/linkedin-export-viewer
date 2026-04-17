@@ -1,48 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'core/url_strategy_stub.dart'
+    if (dart.library.js_interop) 'core/url_strategy_web.dart';
+import 'router/app_router.dart';
 
 void main() {
-  runApp(const LinkedInExportViewerApp());
+  configureUrlStrategy();
+  runApp(const ProviderScope(child: LinkedInExportViewerApp()));
 }
 
-class LinkedInExportViewerApp extends StatelessWidget {
+class LinkedInExportViewerApp extends ConsumerWidget {
   const LinkedInExportViewerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
+    return MaterialApp.router(
       title: 'LinkedIn Export Viewer',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0A66C2)),
       ),
-      home: const _BootstrapScreen(),
-    );
-  }
-}
-
-class _BootstrapScreen extends StatelessWidget {
-  const _BootstrapScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('LinkedIn Export Viewer', style: theme.textTheme.headlineMedium),
-              const SizedBox(height: 12),
-              Text(
-                'Bootstrap scaffold — real UI lands in Phase 1.',
-                style: theme.textTheme.bodyMedium,
-              ),
-            ],
-          ),
-        ),
-      ),
+      routerConfig: router,
     );
   }
 }
