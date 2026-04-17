@@ -23,6 +23,7 @@ const destinations = <ShellDestination>[
   ShellDestination(label: 'Me', icon: Icons.person_outline, selectedIcon: Icons.person, route: '/me'),
   ShellDestination(label: 'Network', icon: Icons.people_outline, selectedIcon: Icons.people, route: '/network'),
   ShellDestination(label: 'Messages', icon: Icons.chat_bubble_outline, selectedIcon: Icons.chat_bubble, route: '/messages'),
+  ShellDestination(label: 'Flow', icon: Icons.hub_outlined, selectedIcon: Icons.hub, route: '/flow'),
   ShellDestination(label: 'Career', icon: Icons.work_outline, selectedIcon: Icons.work, route: '/career'),
   ShellDestination(label: 'Learning', icon: Icons.school_outlined, selectedIcon: Icons.school, route: '/learning'),
   ShellDestination(label: 'Skills', icon: Icons.workspace_premium_outlined, selectedIcon: Icons.workspace_premium, route: '/skills'),
