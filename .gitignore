@@ -1,0 +1,44 @@
+# LinkedIn export data — NEVER commit real user exports
+Basic_LinkedInDataExport_*/
+Basic_LinkedInDataExport_*.zip
+*.csv
+
+# macOS
+.DS_Store
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+
+# === CaseForge credentials ignore block ===
+# Added 2026-04-17 — never commit credentials.
+# Remove from repo with: git rm --cached <file> (keeps it on disk).
+.env
+.env.*
+!.env.example
+!.env.sample
+.mcp.json
+*.key
+*.pem
+credentials*.json
+service-account*.json
+gcp-key*.json
+*_secret.json
+*_secrets.json
+secrets.yaml
+secrets.yml
+.aws/credentials
+.netrc
+# === end credentials block ===
