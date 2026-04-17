@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../state/archive_controller.dart';
 import '../ui/screens/landing_screen.dart';
 import '../ui/screens/loading_screen.dart';
+import '../ui/screens/me_screen.dart';
 import '../ui/screens/messages_screen.dart';
+import '../ui/screens/network_screen.dart';
+import '../ui/screens/raw_file_screen.dart';
 import '../ui/shell/responsive_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -24,7 +27,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (isLoading && loc != '/loading') return '/loading';
       if (!isLoading && !hasArchive && loc != '/') return '/';
-      if (hasArchive && (loc == '/' || loc == '/loading')) return '/messages';
+      if (hasArchive && (loc == '/' || loc == '/loading')) return '/me';
       return null;
     },
     routes: [
@@ -33,7 +36,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (c, s, child) => ResponsiveShell(child: child),
         routes: [
+          GoRoute(path: '/me', builder: (c, s) => const MeScreen()),
+          GoRoute(path: '/network', builder: (c, s) => const NetworkScreen()),
           GoRoute(path: '/messages', builder: (c, s) => const MessagesScreen()),
+          GoRoute(
+            path: '/raw/:path(.*)',
+            builder: (c, s) => RawFileScreen(
+              path: Uri.decodeComponent(s.pathParameters['path'] ?? ''),
+            ),
+          ),
         ],
       ),
     ],

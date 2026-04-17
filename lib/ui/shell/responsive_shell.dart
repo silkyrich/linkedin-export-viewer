@@ -19,12 +19,23 @@ class ShellDestination {
 
 const _destinations = <ShellDestination>[
   ShellDestination(
+    label: 'Me',
+    icon: Icons.person_outline,
+    selectedIcon: Icons.person,
+    route: '/me',
+  ),
+  ShellDestination(
+    label: 'Network',
+    icon: Icons.people_outline,
+    selectedIcon: Icons.people,
+    route: '/network',
+  ),
+  ShellDestination(
     label: 'Messages',
     icon: Icons.chat_bubble_outline,
     selectedIcon: Icons.chat_bubble,
     route: '/messages',
   ),
-  // Subsequent phases will slot Me, Network, Career etc. in here.
 ];
 
 /// Adaptive navigation chrome:
