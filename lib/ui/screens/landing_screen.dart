@@ -71,16 +71,45 @@ class _PickerTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final busy = state.isLoading;
     return FilledButton.icon(
-      onPressed: busy
-          ? null
-          : () =>
-              ref.read(archiveControllerProvider.notifier).loadFromPicker(),
+      onPressed: busy ? null : () => _pickAndLoad(context, ref),
       icon: const Icon(Icons.file_upload_outlined),
       label: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Text(busy ? 'Parsing...' : 'Upload your LinkedIn zip'),
       ),
     );
+  }
+
+  Future<void> _pickAndLoad(BuildContext context, WidgetRef ref) async {
+    final controller = ref.read(archiveControllerProvider.notifier);
+    final bytes = await controller.pickBytes();
+    if (bytes == null) return;
+    if (!context.mounted) return;
+    if (bytes.length > ArchiveController.largeArchiveThreshold) {
+      final mib = (bytes.length / (1024 * 1024)).toStringAsFixed(1);
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Large archive'),
+          content: Text(
+            'This zip is $mib MB. Parsing it will stay in your browser but '
+            'may freeze the tab for a few seconds on a phone. Continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+    await controller.loadFromBytes(bytes, persist: true);
   }
 }
 

@@ -54,13 +54,23 @@ class ArchiveController extends AsyncNotifier<LinkedInArchive?> {
     }
   }
 
-  Future<void> loadFromPicker() async {
+  /// Maximum size we'll parse without confirmation. Bigger archives work too
+  /// but may freeze low-end mobile for a few seconds on the main thread.
+  static const int largeArchiveThreshold = 50 * 1024 * 1024;
+
+  /// Picks a zip and returns its bytes. Lets the UI confirm before we parse
+  /// something unexpectedly huge.
+  Future<Uint8List?> pickBytes() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['zip'],
       withData: true,
     );
-    final bytes = result?.files.single.bytes;
+    return result?.files.single.bytes;
+  }
+
+  Future<void> loadFromPicker() async {
+    final bytes = await pickBytes();
     if (bytes == null) return;
     await loadFromBytes(bytes, persist: true);
   }

@@ -15,6 +15,7 @@ import '../ui/screens/me_screen.dart';
 import '../ui/screens/messages_screen.dart';
 import '../ui/screens/network_screen.dart';
 import '../ui/screens/raw_file_screen.dart';
+import '../ui/screens/search_screen.dart';
 import '../ui/screens/skills_education_screen.dart';
 import '../ui/shell/responsive_shell.dart';
 
@@ -53,6 +54,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/content', builder: (c, s) => const ContentScreen()),
           GoRoute(path: '/activity', builder: (c, s) => const ActivityScreen()),
           GoRoute(path: '/account', builder: (c, s) => const AccountScreen()),
+          GoRoute(path: '/search', builder: (c, s) => const SearchScreen()),
           GoRoute(
             path: '/raw/:path(.*)',
             builder: (c, s) => RawFileScreen(

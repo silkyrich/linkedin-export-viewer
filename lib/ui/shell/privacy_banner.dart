@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../state/archive_controller.dart';
 
@@ -31,6 +32,11 @@ class PrivacyBanner extends ConsumerWidget {
                   color: theme.colorScheme.onSecondaryContainer,
                 ),
               ),
+            ),
+            IconButton(
+              tooltip: 'Search everything',
+              icon: const Icon(Icons.search),
+              onPressed: () => context.go('/search'),
             ),
             TextButton(
               onPressed: () =>

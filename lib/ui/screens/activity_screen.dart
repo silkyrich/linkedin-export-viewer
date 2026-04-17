@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/archive.dart';
 import '../../state/archive_controller.dart';
+import '../widgets/empty_state.dart';
 
 class ActivityScreen extends ConsumerStatefulWidget {
   const ActivityScreen({super.key});
@@ -61,7 +62,10 @@ class _CompanyFollowsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final file = archive.file('Company Follows.csv');
     if (file == null || file.rows.isEmpty) {
-      return const Center(child: Text('Not following any companies.'));
+      return const EmptyState(
+        message: 'Not following any companies.',
+        icon: Icons.domain,
+      );
     }
     return ListView.builder(
       itemCount: file.rows.length,
@@ -90,7 +94,7 @@ class _EventsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final file = archive.file('Events.csv');
     if (file == null || file.rows.isEmpty) {
-      return const Center(child: Text('No events.'));
+      return const EmptyState(message: 'No events.', icon: Icons.event_outlined);
     }
     return ListView.builder(
       itemCount: file.rows.length,
