@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/linkedin_links.dart';
 import '../../models/entities/message.dart';
 import '../../state/archive_controller.dart';
 import '../../state/flow_index.dart';
@@ -420,6 +421,18 @@ class _ContactThread extends StatelessWidget {
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
+                ),
+              ),
+              IconButton(
+                tooltip: contact.key.startsWith('url:')
+                    ? 'Open on LinkedIn'
+                    : 'Search on LinkedIn',
+                icon: const Icon(Icons.open_in_new),
+                onPressed: () => openLinkedInProfile(
+                  url: contact.key.startsWith('url:')
+                      ? contact.key.substring('url:'.length)
+                      : null,
+                  name: contact.name,
                 ),
               ),
             ],

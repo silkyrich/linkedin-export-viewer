@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/archive.dart';
+import '../../core/linkedin_links.dart';
 import '../../state/archive_controller.dart';
 import '../widgets/empty_state.dart';
 
@@ -75,11 +76,31 @@ class _CompanyFollowsTab extends StatelessWidget {
           final idx = file.headers.indexOf(k);
           return (idx == -1 || idx >= r.length) ? '' : r[idx];
         }
+        final org = f('Organization');
         return ListTile(
           leading: const Icon(Icons.domain),
-          title: Text(f('Organization')),
-          trailing: Text(f('Followed On'),
-              style: Theme.of(context).textTheme.labelSmall),
+          title: Text(org),
+          trailing: SizedBox(
+            width: 140,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Text(
+                    f('Followed On'),
+                    textAlign: TextAlign.right,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+                if (org.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Find $org on LinkedIn',
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    onPressed: () => openLinkedInCompany(org),
+                  ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -104,12 +125,32 @@ class _EventsTab extends StatelessWidget {
           final idx = file.headers.indexOf(k);
           return (idx == -1 || idx >= r.length) ? '' : r[idx];
         }
+        final url = f('External Url');
         return ListTile(
           leading: const Icon(Icons.event_outlined),
           title: Text(f('Event Name')),
           subtitle: Text(f('Event Time')),
-          trailing: Text(f('Status'),
-              style: Theme.of(context).textTheme.labelSmall),
+          trailing: SizedBox(
+            width: 130,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Text(
+                    f('Status'),
+                    textAlign: TextAlign.right,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+                if (url.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Open event link',
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    onPressed: () => openExternalUrl(url),
+                  ),
+              ],
+            ),
+          ),
         );
       },
     );

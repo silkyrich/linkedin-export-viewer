@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
 import '../../models/parsed_file.dart';
 import '../../state/archive_controller.dart';
@@ -183,17 +184,37 @@ class _ConnectionRow extends StatelessWidget {
     final company = field('Company');
     final position = field('Position');
     final connectedOn = field('Connected On');
+    final url = field('URL');
+    final name = '$first $last'.trim();
     return ListTile(
-      leading: CircleAvatar(child: Text(_initials('$first $last'))),
-      title: Text('$first $last'.trim(), maxLines: 1, overflow: TextOverflow.ellipsis),
+      leading: CircleAvatar(child: Text(_initials(name))),
+      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         [position, company].where((s) => s.isNotEmpty).join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Text(
-        connectedOn,
-        style: Theme.of(context).textTheme.labelSmall,
+      trailing: SizedBox(
+        width: 150,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Flexible(
+              child: Text(
+                connectedOn,
+                textAlign: TextAlign.right,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ),
+            if (url.isNotEmpty || name.isNotEmpty)
+              IconButton(
+                tooltip: url.isNotEmpty ? 'Open on LinkedIn' : 'Search on LinkedIn',
+                icon: const Icon(Icons.open_in_new, size: 18),
+                onPressed: () =>
+                    openLinkedInProfile(url: url, name: name),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -230,6 +251,8 @@ class _InvitationsTab extends StatelessWidget {
         final to = field('To');
         final msg = field('Message');
         final sentAt = field('Sent At');
+        final otherUrl = isIn ? field('inviterProfileUrl') : field('inviteeProfileUrl');
+        final otherName = isIn ? from : to;
         return ListTile(
           leading: Icon(isIn ? Icons.call_received : Icons.call_made),
           title: Text(isIn ? 'From $from' : 'To $to',
@@ -237,11 +260,29 @@ class _InvitationsTab extends StatelessWidget {
           subtitle: Text(msg.isEmpty ? '(no message)' : msg,
               maxLines: 2, overflow: TextOverflow.ellipsis),
           trailing: SizedBox(
-            width: 110,
-            child: Text(
-              sentAt,
-              textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.labelSmall,
+            width: 140,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Text(
+                    sentAt,
+                    textAlign: TextAlign.right,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+                if (otherUrl.isNotEmpty || otherName.isNotEmpty)
+                  IconButton(
+                    tooltip: otherUrl.isNotEmpty
+                        ? 'Open on LinkedIn'
+                        : 'Search on LinkedIn',
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    onPressed: () => openLinkedInProfile(
+                      url: otherUrl,
+                      name: otherName,
+                    ),
+                  ),
+              ],
             ),
           ),
         );
@@ -304,13 +345,19 @@ class _RecommendationsTabState extends State<_RecommendationsTab> {
                     final company = field('Company');
                     final title = field('Job Title');
                     final text = field('Text');
+                    final name = '$first $last'.trim();
                     return ExpansionTile(
-                      leading: CircleAvatar(child: Text(_initials('$first $last'))),
-                      title: Text('$first $last'.trim()),
+                      leading: CircleAvatar(child: Text(_initials(name))),
+                      title: Text(name),
                       subtitle: Text(
                         [title, company].where((s) => s.isNotEmpty).join(' · '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: IconButton(
+                        tooltip: 'Search on LinkedIn',
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        onPressed: () => openLinkedInProfile(name: name),
                       ),
                       children: [
                         Padding(
@@ -384,7 +431,10 @@ class _EndorsementsTabState extends State<_EndorsementsTab> {
                         _given ? 'Endorsee First Name' : 'Endorser First Name';
                     final lastKey =
                         _given ? 'Endorsee Last Name' : 'Endorser Last Name';
+                    final urlKey =
+                        _given ? 'Endorsee Public Url' : 'Endorser Public Url';
                     final name = '${field(firstKey)} ${field(lastKey)}'.trim();
+                    final url = field(urlKey);
                     final skill = field('Skill Name');
                     final date = field('Endorsement Date');
                     return ListTile(
@@ -392,8 +442,32 @@ class _EndorsementsTabState extends State<_EndorsementsTab> {
                       leading: const Icon(Icons.thumb_up_outlined),
                       title: Text(skill),
                       subtitle: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      trailing: Text(date,
-                          style: Theme.of(context).textTheme.labelSmall),
+                      trailing: SizedBox(
+                        width: 130,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                date,
+                                textAlign: TextAlign.right,
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            ),
+                            if (url.isNotEmpty || name.isNotEmpty)
+                              IconButton(
+                                tooltip: url.isNotEmpty
+                                    ? 'Open on LinkedIn'
+                                    : 'Search on LinkedIn',
+                                icon: const Icon(Icons.open_in_new, size: 16),
+                                onPressed: () => openLinkedInProfile(
+                                  url: url,
+                                  name: name,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),

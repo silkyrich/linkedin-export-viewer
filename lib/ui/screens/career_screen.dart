@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
 import '../../state/archive_controller.dart';
 import '../widgets/kv_card.dart';
@@ -77,6 +78,7 @@ class _PositionsTab extends StatelessWidget {
           final idx = file.headers.indexOf(k);
           return (idx == -1 || idx >= r.length) ? '' : r[idx];
         }
+        final company = f('Company Name');
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Padding(
@@ -84,10 +86,22 @@ class _PositionsTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(f('Title'), style: Theme.of(context).textTheme.titleMedium),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(f('Title'),
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ),
+                    if (company.isNotEmpty)
+                      IconButton(
+                        tooltip: 'Find $company on LinkedIn',
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        onPressed: () => openLinkedInCompany(company),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 2),
-                Text(f('Company Name'),
-                    style: Theme.of(context).textTheme.titleSmall),
+                Text(company, style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 6),
                 Text(
                   [f('Started On'), f('Finished On')]
@@ -131,6 +145,7 @@ class _ApplicationsTab extends StatelessWidget {
           final idx = file.headers.indexOf(k);
           return (idx == -1 || idx >= r.length) ? '' : r[idx];
         }
+        final jobUrl = f('Job Url');
         return ExpansionTile(
           leading: const Icon(Icons.assignment_outlined),
           title: Text(f('Job Title'), maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -139,6 +154,13 @@ class _ApplicationsTab extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
+          trailing: jobUrl.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Open job on LinkedIn',
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  onPressed: () => openLinkedInJob(jobUrl),
+                ),
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(72, 0, 16, 16),
@@ -189,12 +211,32 @@ class _SavedJobsTab extends StatelessWidget {
           final idx = file.headers.indexOf(k);
           return (idx == -1 || idx >= r.length) ? '' : r[idx];
         }
+        final jobUrl = f('Job Url');
         return ListTile(
           leading: const Icon(Icons.bookmark_outline),
           title: Text(f('Job Title')),
           subtitle: Text(f('Company Name')),
-          trailing: Text(f('Saved Date'),
-              style: Theme.of(context).textTheme.labelSmall),
+          trailing: SizedBox(
+            width: 140,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Text(
+                    f('Saved Date'),
+                    textAlign: TextAlign.right,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+                if (jobUrl.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Open job on LinkedIn',
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    onPressed: () => openLinkedInJob(jobUrl),
+                  ),
+              ],
+            ),
+          ),
         );
       },
     );
