@@ -48,34 +48,39 @@ class FlowPainter extends CustomPainter {
     required this.data,
     required this.selectedKey,
     required this.theme,
+    this.pulsePhase = 0,
   });
 
   final FlowGraphData data;
   final String? selectedKey;
   final ColorScheme theme;
 
+  /// 0..1 — when > 0, active-in-window nodes get an animated halo.
+  final double pulsePhase;
+
   @override
   void paint(Canvas canvas, Size size) {
     final bg = Paint()..color = theme.surface;
     canvas.drawRect(Offset.zero & size, bg);
 
-    // Edges first so nodes overlay them.
+    // Edges first so nodes overlay them. Gradient-stroked from the
+    // incoming colour at "me" to the outgoing colour at the contact.
     for (final node in data.nodes) {
       if (node.windowTotal == 0) continue;
-      final thickness = (log(node.windowTotal + 1) * 1.6).clamp(1.0, 14.0);
-      final outRatio = node.windowTotal == 0
-          ? 0.5
-          : node.windowOutgoing / node.windowTotal;
-      final edgeColor = Color.lerp(
-        theme.tertiary,
-        theme.primary,
-        outRatio,
-      )!
-          .withValues(alpha: 0.55);
+      final thickness = (log(node.windowTotal + 1) * 1.8).clamp(1.5, 16.0);
+      final outRatio = node.windowOutgoing / node.windowTotal;
+      final meSide = Color.lerp(theme.tertiary, theme.primary, outRatio)!;
+      final otherSide = Color.lerp(theme.primary, theme.tertiary, outRatio)!;
+      final dim = selectedKey != null && selectedKey != node.contact.key;
+      final alpha = dim ? 0.12 : 0.6;
+      final shader = LinearGradient(
+        colors: [
+          meSide.withValues(alpha: alpha),
+          otherSide.withValues(alpha: alpha),
+        ],
+      ).createShader(Rect.fromPoints(data.meCenter, node.position));
       final paint = Paint()
-        ..color = selectedKey == null || selectedKey == node.contact.key
-            ? edgeColor
-            : edgeColor.withValues(alpha: 0.15)
+        ..shader = shader
         ..strokeWidth = thickness
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(data.meCenter, node.position, paint);
@@ -100,6 +105,24 @@ class FlowPainter extends CustomPainter {
       canvas,
       data.meCenter - Offset(meLabel.width / 2, meLabel.height / 2),
     );
+
+    // Pulse halo on active-in-window contacts — a quiet heartbeat so
+    // you can tell which nodes are "live" during playback. Phase 0..1
+    // comes from the AnimationController in FlowsScreen.
+    if (pulsePhase > 0) {
+      for (final node in data.nodes) {
+        if (node.windowTotal == 0) continue;
+        if (selectedKey != null && selectedKey != node.contact.key) continue;
+        final t = pulsePhase;
+        final haloR = node.radius + 4 + t * 14;
+        final haloAlpha = (1 - t) * 0.35;
+        final haloPaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = theme.primary.withValues(alpha: haloAlpha);
+        canvas.drawCircle(node.position, haloR, haloPaint);
+      }
+    }
 
     // Contact nodes
     for (final node in data.nodes) {
@@ -186,7 +209,8 @@ class FlowPainter extends CustomPainter {
   bool shouldRepaint(covariant FlowPainter old) {
     return old.data != data ||
         old.selectedKey != selectedKey ||
-        old.theme != theme;
+        old.theme != theme ||
+        old.pulsePhase != pulsePhase;
   }
 
   /// Hit-test against contact nodes. Returns the key of the top-most node

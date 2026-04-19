@@ -21,19 +21,60 @@ class LinkedInExportViewerApp extends ConsumerWidget {
     const seed = Color(0xFF0A66C2);
     return MaterialApp.router(
       title: 'LinkedIn Export Viewer',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: seed),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: seed,
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: _buildTheme(Brightness.light, seed),
+      darkTheme: _buildTheme(Brightness.dark, seed),
       themeMode: themeMode,
       routerConfig: router,
     );
   }
+}
+
+ThemeData _buildTheme(Brightness brightness, Color seed) {
+  final base = ThemeData(
+    useMaterial3: true,
+    brightness: brightness,
+    colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: brightness),
+  );
+  // Tighter, more deliberate type. Defaults are fine but a bit spongy —
+  // pulling letter-spacing in slightly and punching display weights makes
+  // headlines feel more intentional across light and dark.
+  final text = base.textTheme;
+  return base.copyWith(
+    textTheme: text.copyWith(
+      displayLarge: text.displayLarge?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.5,
+      ),
+      displayMedium: text.displayMedium?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.4,
+      ),
+      displaySmall: text.displaySmall?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
+      ),
+      headlineMedium: text.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
+      headlineSmall: text.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+      titleLarge: text.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+      titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+    ),
+    cardTheme: base.cardTheme.copyWith(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+  );
 }

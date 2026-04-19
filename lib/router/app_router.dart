@@ -65,21 +65,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (c, s, child) => ResponsiveShell(child: child),
         routes: [
-          GoRoute(path: '/me', builder: (c, s) => const MeScreen()),
-          GoRoute(path: '/network', builder: (c, s) => const NetworkScreen()),
-          GoRoute(path: '/messages', builder: (c, s) => const MessagesScreen()),
-          GoRoute(path: '/flow', builder: (c, s) => const FlowsScreen()),
-          GoRoute(path: '/career', builder: (c, s) => const CareerScreen()),
-          GoRoute(path: '/learning', builder: (c, s) => const LearningScreen()),
-          GoRoute(path: '/skills', builder: (c, s) => const SkillsEducationScreen()),
-          GoRoute(path: '/content', builder: (c, s) => const ContentScreen()),
-          GoRoute(path: '/activity', builder: (c, s) => const ActivityScreen()),
-          GoRoute(path: '/account', builder: (c, s) => const AccountScreen()),
-          GoRoute(path: '/search', builder: (c, s) => const SearchScreen()),
+          _fade('/me', const MeScreen()),
+          _fade('/network', const NetworkScreen()),
+          _fade('/messages', const MessagesScreen()),
+          _fade('/flow', const FlowsScreen()),
+          _fade('/career', const CareerScreen()),
+          _fade('/learning', const LearningScreen()),
+          _fade('/skills', const SkillsEducationScreen()),
+          _fade('/content', const ContentScreen()),
+          _fade('/activity', const ActivityScreen()),
+          _fade('/account', const AccountScreen()),
+          _fade('/search', const SearchScreen()),
           GoRoute(
             path: '/raw/:path(.*)',
-            builder: (c, s) => RawFileScreen(
-              path: Uri.decodeComponent(s.pathParameters['path'] ?? ''),
+            pageBuilder: (c, s) => _fadeTransition(
+              child: RawFileScreen(
+                path: Uri.decodeComponent(s.pathParameters['path'] ?? ''),
+              ),
+              state: s,
             ),
           ),
         ],
@@ -87,6 +90,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+GoRoute _fade(String path, Widget child) => GoRoute(
+      path: path,
+      pageBuilder: (c, s) => _fadeTransition(child: child, state: s),
+    );
+
+CustomTransitionPage<void> _fadeTransition({
+  required Widget child,
+  required GoRouterState state,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 180),
+    reverseTransitionDuration: const Duration(milliseconds: 140),
+    transitionsBuilder: (c, animation, secondary, child) {
+      return FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+        child: child,
+      );
+    },
+  );
+}
 
 /// Bridges a Riverpod [archiveControllerProvider] into a Listenable that
 /// go_router can subscribe to for redirect re-evaluation.

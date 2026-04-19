@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/archive.dart';
 import '../../models/parsed_file.dart';
 import '../../state/archive_controller.dart';
+import '../widgets/activity_heatmap.dart';
 import '../widgets/kv_card.dart';
 import '../widgets/summary_card.dart';
 
@@ -23,6 +24,7 @@ class MeScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
         const SummaryCard(),
+        const ActivityHeatmap(),
         _singleRowCard(archive, 'Profile.csv', 'Profile'),
         _singleRowCard(archive, 'Profile Summary.csv', 'Profile Summary'),
         _singleRowCard(archive, 'Registration.csv', 'Registration'),

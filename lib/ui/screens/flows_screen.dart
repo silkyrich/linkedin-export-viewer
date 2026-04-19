@@ -67,8 +67,9 @@ extension on _Filter {
 }
 
 class _FlowsScreenState extends ConsumerState<FlowsScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _playController;
+  late final AnimationController _pulseController;
   _Window _window = _Window.month;
   _Filter _filter = _Filter.all;
   double _position = 1.0; // 0..1 along the archive's full date span
@@ -84,6 +85,10 @@ class _FlowsScreenState extends ConsumerState<FlowsScreen>
       vsync: this,
       duration: const Duration(seconds: 30),
     )..addListener(_onTick);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
   }
 
   @override
@@ -91,6 +96,7 @@ class _FlowsScreenState extends ConsumerState<FlowsScreen>
     _playController
       ..removeListener(_onTick)
       ..dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -169,12 +175,16 @@ class _FlowsScreenState extends ConsumerState<FlowsScreen>
                       final hit = painter.nodeAt(details.localPosition);
                       setState(() => _selectedKey = hit);
                     },
-                    child: CustomPaint(
-                      size: Size.infinite,
-                      painter: FlowPainter(
-                        data: graphData,
-                        selectedKey: _selectedKey,
-                        theme: theme.colorScheme,
+                    child: AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (ctx, _) => CustomPaint(
+                        size: Size.infinite,
+                        painter: FlowPainter(
+                          data: graphData,
+                          selectedKey: _selectedKey,
+                          theme: theme.colorScheme,
+                          pulsePhase: _pulseController.value,
+                        ),
                       ),
                     ),
                   ),
