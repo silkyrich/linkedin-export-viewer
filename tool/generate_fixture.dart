@@ -120,6 +120,11 @@ void main(List<String> args) {
   // Activity
   _writeCompanyFollows(rng);
   _writeEvents(rng);
+  _writeReactions(rng);
+  _writeShares(rng);
+  _writeComments(rng);
+  _writeVotes(rng);
+  _writeSavedArticles(rng);
 
   // Account
   _writeReceipts(me, rng);
@@ -1149,6 +1154,136 @@ void _writeEvents(Random rng) {
   _writeCsv(
     '$_fixturesDir/Events.csv',
     ['Event Name', 'Event Time', 'Status', 'External Url'],
+    rows,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Social activity writers (Complete-archive files)
+
+const _reactionTypes = ['LIKE', 'PRAISE', 'EMPATHY', 'INTEREST', 'APPRECIATION', 'MAYBE'];
+const _postTopics = [
+  'the new Analytical Engine spec',
+  'Bernoulli sequence programming',
+  'operational-card notation',
+  'hospital mortality statistics',
+  'electromagnetic induction',
+  'Translator\'s Notes',
+  'the symbolic logic debate',
+  'Jacquard loom patterns',
+  'the state of Cambridge mathematics',
+  'astronomy photography',
+];
+
+String _fakePostUrl(Random rng, int n) =>
+    'https://www.linkedin.com/posts/fake-persona-${rng.nextInt(999)}_activity-${7000000000000000 + n}-AaAa';
+
+void _writeReactions(Random rng) {
+  final rows = <List<Object?>>[];
+  for (var i = 0; i < 80; i++) {
+    final t = DateTime.utc(1840 + rng.nextInt(12), 1 + rng.nextInt(12), 1 + rng.nextInt(28));
+    rows.add([
+      _utcTimestamp(t),
+      _reactionTypes[rng.nextInt(_reactionTypes.length)],
+      _fakePostUrl(rng, i),
+    ]);
+  }
+  _writeCsv(
+    '$_fixturesDir/Reactions.csv',
+    ['Date', 'Type', 'Link'],
+    rows,
+  );
+}
+
+void _writeShares(Random rng) {
+  final rows = <List<Object?>>[];
+  for (var i = 0; i < 25; i++) {
+    final t = DateTime.utc(1840 + rng.nextInt(12), 1 + rng.nextInt(12), 1 + rng.nextInt(28));
+    final topic = _postTopics[rng.nextInt(_postTopics.length)];
+    rows.add([
+      _utcTimestamp(t),
+      _fakePostUrl(rng, i),
+      rng.nextBool() ? 'PUBLIC' : 'CONNECTIONS',
+      'Sharing this piece on $topic — worth reading if you work on similar questions.',
+      rng.nextBool()
+          ? 'https://example.com/media/share-${_slugify(topic)}.png'
+          : '',
+    ]);
+  }
+  _writeCsv(
+    '$_fixturesDir/Shares.csv',
+    ['Date', 'ShareLink', 'ShareCommentary', 'SharedUrl', 'MediaUrl'],
+    rows,
+  );
+}
+
+void _writeComments(Random rng) {
+  final rows = <List<Object?>>[];
+  const comments = [
+    'Agreed. The carry-forward pattern here saves a full pass.',
+    'Could we adapt this approach for nested sequences?',
+    'Fair point on the notation — I\'ll revise mine.',
+    'Seeing similar results on our end. Happy to compare notes.',
+    'Thanks for the careful response. Useful.',
+    'Worth flagging: this only holds when the mill doesn\'t overflow.',
+    'Reasonable. Different context, same conclusion.',
+  ];
+  for (var i = 0; i < 60; i++) {
+    final t = DateTime.utc(1840 + rng.nextInt(12), 1 + rng.nextInt(12), 1 + rng.nextInt(28), rng.nextInt(24), rng.nextInt(60));
+    rows.add([
+      _utcTimestamp(t),
+      '${_fakePostUrl(rng, i)}/?commentUrn=urn%3Ali%3Acomment%3A(activity%3A$i)',
+      comments[rng.nextInt(comments.length)],
+    ]);
+  }
+  _writeCsv(
+    '$_fixturesDir/Comments.csv',
+    ['Date', 'Link', 'Message'],
+    rows,
+  );
+}
+
+void _writeVotes(Random rng) {
+  final rows = <List<Object?>>[];
+  const options = ['Option A', 'Option B', 'Option C', 'Option D'];
+  for (var i = 0; i < 15; i++) {
+    final t = DateTime.utc(1840 + rng.nextInt(12), 1 + rng.nextInt(12), 1 + rng.nextInt(28));
+    rows.add([
+      _utcTimestamp(t),
+      '${_fakePostUrl(rng, i)}-poll',
+      options[rng.nextInt(options.length)],
+    ]);
+  }
+  _writeCsv(
+    '$_fixturesDir/Votes.csv',
+    ['Date', 'Link', 'OptionText'],
+    rows,
+  );
+}
+
+void _writeSavedArticles(Random rng) {
+  final rows = <List<Object?>>[];
+  const titles = [
+    'Designing for computational clarity',
+    'Why notation matters more than people think',
+    'On the difficulty of stopping a career',
+    'An obituary for the Difference Engine',
+    'Victorian managers, modern problems',
+    'How we run our correspondence stack',
+    'Everything I know about carry-forward',
+    'Meetings, dispatches, and the value of a short letter',
+  ];
+  for (var i = 0; i < titles.length; i++) {
+    final t = DateTime.utc(1840 + rng.nextInt(12), 1 + rng.nextInt(12), 1 + rng.nextInt(28));
+    rows.add([
+      _utcTimestamp(t),
+      _fakePostUrl(rng, i + 100),
+      titles[i],
+    ]);
+  }
+  _writeCsv(
+    '$_fixturesDir/saved_articles.csv',
+    ['Saved At', 'Link', 'Name'],
     rows,
   );
 }

@@ -185,9 +185,11 @@ class AboutScreen extends StatelessWidget {
               'filename tells you which you got: fast archives are named '
               '"Basic_LinkedInDataExport_...". LinkedOut! parses every '
               'file in the fast archive, and most of the complete one. '
-              'What we don\'t render yet: the social-activity files only '
-              'present in the complete archive — Reactions.csv, '
-              'Shares.csv, Comments.csv, Votes.csv, saved_articles.csv. '
+              'Social-activity files only present in the complete archive — '
+              'Reactions, Shares, Comments, Votes, saved articles — show '
+              'up under Activity → Engagement when present, each row '
+              'deep-linking back to the original post or comment on '
+              'LinkedIn. '
               'If your profile looks thin here, it usually just means '
               'you don\'t use that feature (no Premium subscription → no '
               'Receipts; no ID verification → no Verifications; never '
@@ -303,6 +305,11 @@ const _categories = <_Category>[
     files: [
       ('Company Follows.csv', 'Every company page you follow and when you started following.'),
       ('Events.csv', 'LinkedIn events you marked as attending or interested in.'),
+      ('Reactions.csv', 'Every Like / Celebrate / Support / Insightful / Love / Funny reaction, with a deep-link to the post. (Complete archive only.)'),
+      ('Shares.csv', 'Every post you shared, with commentary and visibility. (Complete archive only.)'),
+      ('Comments.csv', 'Every comment you left on LinkedIn, with a deep-link to the comment. (Complete archive only.)'),
+      ('Votes.csv', 'Poll votes you cast. (Complete archive only.)'),
+      ('saved_articles.csv', 'Articles you saved for later. (Complete archive only.)'),
     ],
   ),
   _Category(
