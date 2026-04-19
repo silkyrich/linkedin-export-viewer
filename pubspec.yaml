@@ -1,5 +1,5 @@
 name: linkedin_export_viewer
-description: "Browse your LinkedIn data export in the browser, privately."
+description: "LinkedOut! — browse your LinkedIn data export privately in your browser."
 publish_to: 'none'
 version: 0.1.0+1
 

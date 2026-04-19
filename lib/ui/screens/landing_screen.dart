@@ -67,17 +67,26 @@ class LandingScreen extends ConsumerWidget {
                       ).asCenter(),
                       const SizedBox(height: 24),
                       Text(
-                        'LinkedIn Export Viewer',
-                        style: theme.textTheme.displaySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.5,
+                        'LinkedOut!',
+                        style: theme.textTheme.displayLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.2,
                         ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Browse everything LinkedIn has on you — privately, in this browser tab.',
+                        'What LinkedIn stores about you, viewed on your terms.',
                         style: theme.textTheme.titleMedium?.copyWith(
+                          color: cs.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Drop your LinkedIn data-export zip. Everything stays in this browser tab — no server, no upload, no tracking.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           color: cs.onSurfaceVariant,
                           height: 1.4,
                         ),

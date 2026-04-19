@@ -28,7 +28,7 @@ class AboutScreen extends StatelessWidget {
                     style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 const Text(
-                  'LinkedIn Export Viewer is a static site. When you upload '
+                  'LinkedOut! is a static site. When you upload '
                   'your LinkedIn data-export zip, the file is opened by the '
                   'JavaScript running in this tab and never sent to any '
                   'server. There is no backend. The hosting provider (GitHub '

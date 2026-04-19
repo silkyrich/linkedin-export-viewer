@@ -1,11 +1,11 @@
 {
-    "name": "linkedin_export_viewer",
-    "short_name": "linkedin_export_viewer",
+    "name": "LinkedOut!",
+    "short_name": "LinkedOut!",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Browse your LinkedIn data export in the browser, privately.",
+    "background_color": "#0A66C2",
+    "theme_color": "#0A66C2",
+    "description": "LinkedOut! — browse your LinkedIn data export privately in your browser.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

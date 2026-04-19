@@ -20,7 +20,7 @@ class LinkedInExportViewerApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     const seed = Color(0xFF0A66C2);
     return MaterialApp.router(
-      title: 'LinkedIn Export Viewer',
+      title: 'LinkedOut!',
       theme: _buildTheme(Brightness.light, seed),
       darkTheme: _buildTheme(Brightness.dark, seed),
       themeMode: themeMode,

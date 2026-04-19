@@ -1,10 +1,14 @@
-# linkedin-export-viewer
+# LinkedOut!
 
 A static Flutter web app that lets you browse your LinkedIn data-export zip locally in your browser. Your data never leaves the tab.
 
+**Live:** https://silkyrich.github.io/linkedin-export-viewer/
+
+> The GitHub repo is still called `linkedin-export-viewer` for URL stability (it's the GH Pages subpath). The *product* is LinkedOut!.
+
 ## What it does
 
-LinkedIn lets you download everything they've collected about you (Settings → Data privacy → Get a copy of your data). The result is a zip full of CSVs that's hard to make sense of. This app unpacks it in-memory and renders it as a mobile-friendly "what LinkedIn stores about you" browser — profile, connections, messages, job applications, ad-targeting segments, and more.
+LinkedIn lets you download everything they've collected about you (Settings → Data privacy → Get a copy of your data). The result is a zip full of CSVs that's hard to make sense of. LinkedOut! unpacks it in-memory and renders it as a mobile-friendly "what LinkedIn stores about you" browser — profile, connections, messages, job applications, ad-targeting segments, and more. It also exports a prompt-prefixed Markdown dossier you can paste into any LLM for career or profile advice.
 
 ## Privacy model
 

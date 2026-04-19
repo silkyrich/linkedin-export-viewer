@@ -9,7 +9,7 @@ void main() {
       const ProviderScope(child: LinkedInExportViewerApp()),
     );
     await tester.pumpAndSettle();
-    expect(find.text('LinkedIn Export Viewer'), findsOneWidget);
+    expect(find.text('LinkedOut!'), findsOneWidget);
     expect(find.text('Upload your LinkedIn zip'), findsOneWidget);
     expect(find.text('Try with sample data'), findsOneWidget);
   });
