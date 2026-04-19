@@ -20,6 +20,7 @@ class LandingScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final archiveState = ref.watch(archiveControllerProvider);
 
+    final cs = theme.colorScheme;
     return Scaffold(
       body: DropZone(
         onDrop: (bytes, name) async {
@@ -30,55 +31,97 @@ class LandingScreen extends ConsumerWidget {
               .read(archiveControllerProvider.notifier)
               .loadFromBytes(bytes, persist: true);
         },
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'LinkedIn Export Viewer',
-                      style: theme.textTheme.displaySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Drop the zip LinkedIn emailed you. Everything stays in '
-                      'this browser tab — no server, no upload, no tracking.',
-                      style: theme.textTheme.bodyLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    _PickerTile(state: archiveState),
-                    const SizedBox(height: 16),
-                    _DemoTile(state: archiveState),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Tip: drop the zip anywhere on this page.',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                cs.primaryContainer.withValues(alpha: 0.4),
+                cs.surface,
+                cs.tertiaryContainer.withValues(alpha: 0.3),
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: cs.primary,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Icon(
+                          Icons.hub,
+                          size: 40,
+                          color: cs.onPrimary,
+                        ),
+                      ).asCenter(),
+                      const SizedBox(height: 24),
+                      Text(
+                        'LinkedIn Export Viewer',
+                        style: theme.textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    Text(
-                      'How to get your export: linkedin.com → Me → Settings → '
-                      'Data privacy → Get a copy of your data.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      const SizedBox(height: 12),
+                      Text(
+                        'Browse everything LinkedIn has on you — privately, in this browser tab.',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () => context.go('/about'),
-                      child: const Text('About · MIT License'),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      const Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _Pill(icon: Icons.lock_outline, label: 'No upload'),
+                          _Pill(icon: Icons.dns_outlined, label: 'No server'),
+                          _Pill(icon: Icons.visibility_off_outlined, label: 'No tracking'),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      _PickerTile(state: archiveState),
+                      const SizedBox(height: 12),
+                      _DemoTile(state: archiveState),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Tip: drop the zip anywhere on this page.',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'How to get your export: linkedin.com → Me → Settings → '
+                        'Data privacy → Get a copy of your data.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () => context.go('/about'),
+                        child: const Text('About · MIT License'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -87,6 +130,36 @@ class LandingScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: cs.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Text(label, style: Theme.of(context).textTheme.labelMedium),
+        ],
+      ),
+    );
+  }
+}
+
+extension on Widget {
+  Widget asCenter() => Align(alignment: Alignment.center, child: this);
 }
 
 Future<bool> _maybeConfirmLarge(BuildContext context, int byteLength) async {

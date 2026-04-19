@@ -6,6 +6,7 @@ import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
 import '../../models/entities/message.dart';
 import '../../state/archive_controller.dart';
+import '../widgets/avatar.dart';
 
 /// Browses the decoded messages.csv.
 ///
@@ -135,7 +136,7 @@ class _ConversationTile extends StatelessWidget {
     final last = entry.lastMessage;
     final subtitle = last.content.split('\n').first;
     return ListTile(
-      leading: CircleAvatar(child: Text(_initials(entry.title))),
+      leading: Avatar(name: entry.title),
       title: Text(
         entry.title,
         maxLines: 1,
@@ -245,13 +246,6 @@ class _ThreadView extends StatelessWidget {
       },
     );
   }
-}
-
-String _initials(String name) {
-  final parts = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
-  if (parts.isEmpty) return '?';
-  if (parts.length == 1) return parts.first.characters.first.toUpperCase();
-  return (parts.first.characters.first + parts[1].characters.first).toUpperCase();
 }
 
 String _fmt(int n) => NumberFormat.decimalPattern().format(n);

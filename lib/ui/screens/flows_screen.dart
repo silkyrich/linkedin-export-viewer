@@ -8,6 +8,7 @@ import '../../core/linkedin_links.dart';
 import '../../models/entities/message.dart';
 import '../../state/archive_controller.dart';
 import '../../state/flow_index.dart';
+import '../widgets/avatar.dart';
 import '../widgets/flow_painter.dart';
 
 /// Animated message-flow timeline.
@@ -406,7 +407,7 @@ class _ContactThread extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           child: Row(
             children: [
-              CircleAvatar(child: Text(_initials(contact.name))),
+              Avatar(name: contact.name),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -505,13 +506,6 @@ class _ContactThread extends StatelessWidget {
       ],
     );
   }
-}
-
-String _initials(String name) {
-  final parts = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
-  if (parts.isEmpty) return '?';
-  if (parts.length == 1) return parts.first[0].toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 class _Controls extends StatelessWidget {

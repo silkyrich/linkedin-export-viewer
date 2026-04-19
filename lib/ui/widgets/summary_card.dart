@@ -6,6 +6,7 @@ import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
 import '../../state/archive_controller.dart';
 import '../../state/flow_index.dart';
+import 'avatar.dart';
 
 /// "What LinkedIn knows about you at a glance" card for the top of /me.
 ///
@@ -89,31 +90,36 @@ class SummaryCard extends ConsumerWidget {
               const SizedBox(height: 4),
               for (final c in stats.topContacts)
                 InkWell(
+                  borderRadius: BorderRadius.circular(8),
                   onTap: () => openLinkedInProfile(
                     url: c.key.startsWith('url:') ? c.key.substring(4) : null,
                     name: c.name,
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                     child: Row(
                       children: [
+                        Avatar(name: c.name, size: 28),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             c.name,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w500,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Text(
-                          '${c.totalOutgoing} sent · ${c.totalIncoming} received',
+                          '${c.totalOutgoing}↑ ${c.totalIncoming}↓',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onPrimaryContainer,
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                         Icon(
                           Icons.open_in_new,
                           size: 14,

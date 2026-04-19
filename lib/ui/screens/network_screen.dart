@@ -6,6 +6,7 @@ import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
 import '../../models/parsed_file.dart';
 import '../../state/archive_controller.dart';
+import '../widgets/avatar.dart';
 
 /// Network tab: Connections, Invitations, Recommendations, Endorsements.
 /// Each sub-tab is a virtualized filterable list.
@@ -187,7 +188,7 @@ class _ConnectionRow extends StatelessWidget {
     final url = field('URL');
     final name = '$first $last'.trim();
     return ListTile(
-      leading: CircleAvatar(child: Text(_initials(name))),
+      leading: Avatar(name: name),
       title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         [position, company].where((s) => s.isNotEmpty).join(' · '),
@@ -347,7 +348,7 @@ class _RecommendationsTabState extends State<_RecommendationsTab> {
                     final text = field('Text');
                     final name = '$first $last'.trim();
                     return ExpansionTile(
-                      leading: CircleAvatar(child: Text(_initials(name))),
+                      leading: Avatar(name: name),
                       title: Text(name),
                       subtitle: Text(
                         [title, company].where((s) => s.isNotEmpty).join(' · '),
@@ -480,10 +481,3 @@ class _EndorsementsTabState extends State<_EndorsementsTab> {
 // ---------------------------------------------------------------------------
 
 Widget _empty(String text) => Center(child: Text(text));
-
-String _initials(String name) {
-  final parts = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
-  if (parts.isEmpty) return '?';
-  if (parts.length == 1) return parts.first[0].toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
