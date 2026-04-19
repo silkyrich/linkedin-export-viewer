@@ -118,15 +118,8 @@ class LandingScreen extends ConsumerWidget {
                       const SizedBox(height: 32),
                       const _WhatYoullSee(),
                       const SizedBox(height: 32),
-                      Text(
-                        'How to get your export: linkedin.com → Me → Settings → '
-                        'Data privacy → Get a copy of your data.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
+                      const _GetYourExport(),
+                      const SizedBox(height: 16),
                       TextButton(
                         onPressed: () => context.go('/about'),
                         child: const Text('About · MIT License'),
@@ -139,6 +132,105 @@ class LandingScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _GetYourExport extends StatelessWidget {
+  const _GetYourExport();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    const steps = <(String, String)>[
+      ('Sign in on linkedin.com',
+          'The export is only available from the website, not the mobile app.'),
+      ('Me → Settings & Privacy',
+          'Click your profile picture in the top bar, then Settings & Privacy.'),
+      ('Data Privacy → Get a copy of your data',
+          'Left sidebar. Direct link: linkedin.com/mypreferences/d/download-my-data'),
+      ('Pick "Want something in particular?"',
+          'Tick the things you want. "Connections" alone comes in seconds. The full "larger archive" takes up to 24 hours and arrives by email.'),
+      ('Download the .zip LinkedIn emails you',
+          'Drop it straight onto this page — nothing gets uploaded.'),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('How to get your export', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        for (var i = 0; i < steps.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Text(
+                    '${i + 1}',
+                    style: TextStyle(
+                      color: cs.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: theme.textTheme.bodySmall,
+                      children: [
+                        TextSpan(
+                          text: '${steps[i].$1}. ',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        TextSpan(
+                          text: steps[i].$2,
+                          style: TextStyle(color: cs.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: RichText(
+            text: TextSpan(
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+              children: const [
+                TextSpan(
+                  text: 'Tip: ',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                TextSpan(
+                  text:
+                      'Empty sections usually just mean you don\'t use that LinkedIn feature (no Premium = no Receipts, no ID verification = no Verifications, never posted = no Articles). LinkedOut! parses every file in the Fast archive. The larger archive also contains social activity files (reactions, shares, comments, saves) that aren\'t rendered here yet.',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

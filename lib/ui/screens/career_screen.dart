@@ -308,18 +308,33 @@ class _PreferencesTab extends StatelessWidget {
 class _PositionsSummary {
   _PositionsSummary({
     required this.companies,
-    required this.totalMonths,
+    required this.workingMonths,
+    required this.gapMonths,
+    required this.careerSpanMonths,
     required this.longestTenureMonths,
     required this.longestTitle,
     required this.longestCompany,
-    required this.firstYear,
+    required this.firstStart,
+    required this.lastEnd,
+    required this.stillWorking,
   });
   final int companies;
-  final int totalMonths;
+
+  /// Months *in work* — sum of merged, non-overlapping position intervals.
+  final int workingMonths;
+
+  /// Months *between* jobs — the career span minus time in work.
+  final int gapMonths;
+
+  /// Total months from first start date until the last known end date
+  /// (or now, if there's a currently-open position).
+  final int careerSpanMonths;
   final int longestTenureMonths;
   final String longestTitle;
   final String longestCompany;
-  final int? firstYear;
+  final DateTime? firstStart;
+  final DateTime? lastEnd;
+  final bool stillWorking;
 }
 
 _PositionsSummary _positionsSummary(ParsedFile file) {
@@ -332,79 +347,345 @@ _PositionsSummary _positionsSummary(ParsedFile file) {
   var longestMonths = 0;
   var longestTitle = '';
   var longestCompany = '';
-  int? firstYear;
-  var totalMonths = 0;
+  DateTime? firstStart;
+  DateTime? lastEnd;
+  var stillWorking = false;
+  final intervals = <(DateTime, DateTime)>[];
 
   for (final r in file.rows) {
     String at(int i) => (i < 0 || i >= r.length) ? '' : r[i];
     final company = at(companyIdx);
     if (company.isNotEmpty) companies.add(company);
     final start = _parseLinkedInDate(at(startIdx));
-    final end = _parseLinkedInDate(at(finishIdx)) ?? DateTime.now();
+    final finishStr = at(finishIdx);
+    final rawEnd = _parseLinkedInDate(finishStr);
+    final end = rawEnd ?? DateTime.now();
+    if (finishStr.trim().isEmpty) stillWorking = true;
     if (start == null) continue;
+    intervals.add((start, end));
     final months = (end.year - start.year) * 12 + (end.month - start.month);
     final clean = months < 0 ? 0 : months;
-    totalMonths += clean;
     if (clean > longestMonths) {
       longestMonths = clean;
       longestTitle = at(titleIdx);
       longestCompany = company;
     }
-    if (firstYear == null || start.year < firstYear) firstYear = start.year;
+    if (firstStart == null || start.isBefore(firstStart)) firstStart = start;
+    if (lastEnd == null || end.isAfter(lastEnd)) lastEnd = end;
   }
+
+  // Merge overlapping intervals so concurrent jobs don't double-count.
+  intervals.sort((a, b) => a.$1.compareTo(b.$1));
+  final merged = <(DateTime, DateTime)>[];
+  for (final iv in intervals) {
+    if (merged.isEmpty || iv.$1.isAfter(merged.last.$2)) {
+      merged.add(iv);
+    } else {
+      final last = merged.removeLast();
+      merged.add((last.$1, iv.$2.isAfter(last.$2) ? iv.$2 : last.$2));
+    }
+  }
+  var workingMonths = 0;
+  for (final iv in merged) {
+    final m = (iv.$2.year - iv.$1.year) * 12 + (iv.$2.month - iv.$1.month);
+    workingMonths += m < 0 ? 0 : m;
+  }
+
+  final spanMonths = (firstStart == null || lastEnd == null)
+      ? 0
+      : ((lastEnd.year - firstStart.year) * 12 +
+              (lastEnd.month - firstStart.month))
+          .clamp(0, 1 << 30);
+  final gap = (spanMonths - workingMonths).clamp(0, 1 << 30);
 
   return _PositionsSummary(
     companies: companies.length,
-    totalMonths: totalMonths,
+    workingMonths: workingMonths,
+    gapMonths: gap,
+    careerSpanMonths: spanMonths,
     longestTenureMonths: longestMonths,
     longestTitle: longestTitle,
     longestCompany: longestCompany,
-    firstYear: firstYear,
+    firstStart: firstStart,
+    lastEnd: lastEnd,
+    stillWorking: stillWorking,
   );
 }
 
 Widget _positionsHeader(BuildContext context, _PositionsSummary s) {
-  final theme = Theme.of(context);
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-    child: Column(
+  return _PositionsHeader(summary: s);
+}
+
+class _PositionsHeader extends StatefulWidget {
+  const _PositionsHeader({required this.summary});
+  final _PositionsSummary summary;
+
+  @override
+  State<_PositionsHeader> createState() => _PositionsHeaderState();
+}
+
+class _PositionsHeaderState extends State<_PositionsHeader> {
+  int? _retirementAge;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final s = widget.summary;
+    final firstYear = s.firstStart?.year;
+    final now = DateTime.now();
+
+    // Default assumption: start-working-age 22, retire at 65 → 43-year
+    // career. Users override with the slider. We don't store this.
+    final defaultAge = 65;
+    final age = _retirementAge ?? defaultAge;
+    final startAge = 22;
+    final retirementYear =
+        firstYear == null ? now.year : firstYear - startAge + age;
+    final yearsLeft = retirementYear - now.year;
+    final totalCareerYears =
+        firstYear == null ? 0 : retirementYear - firstYear;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Career summary', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              StatTile(
+                label: 'Time in work',
+                value: _duration(s.workingMonths),
+                icon: Icons.work_history,
+              ),
+              if (s.gapMonths > 0)
+                StatTile(
+                  label: 'Between jobs',
+                  value: _duration(s.gapMonths),
+                  icon: Icons.pause_circle_outline,
+                  hint: 'gaps in timeline',
+                ),
+              StatTile(
+                label: 'Companies',
+                value: '${s.companies}',
+                icon: Icons.domain,
+              ),
+              StatTile(
+                label: 'Longest tenure',
+                value: _duration(s.longestTenureMonths),
+                hint: [s.longestTitle, s.longestCompany]
+                    .where((x) => x.isNotEmpty)
+                    .join(' · '),
+                icon: Icons.trending_up,
+              ),
+              if (firstYear != null)
+                StatTile(
+                  label: 'Started working',
+                  value: '$firstYear',
+                  icon: Icons.flag_outlined,
+                ),
+              if (firstYear != null && yearsLeft > 0)
+                StatTile(
+                  label: 'Career left (est.)',
+                  value: '${yearsLeft}y',
+                  hint: 'retire at $age · ~$retirementYear',
+                  icon: Icons.hourglass_bottom,
+                ),
+            ],
+          ),
+          if (firstYear != null && totalCareerYears > 0) ...[
+            const SizedBox(height: 16),
+            _CareerProgressBar(
+              summary: s,
+              retirementYear: retirementYear,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text('Retire at', style: theme.textTheme.labelSmall),
+                Expanded(
+                  child: Slider(
+                    value: age.toDouble(),
+                    min: 55,
+                    max: 75,
+                    divisions: 20,
+                    label: '$age',
+                    onChanged: (v) =>
+                        setState(() => _retirementAge = v.round()),
+                  ),
+                ),
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    '$age',
+                    textAlign: TextAlign.right,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CareerProgressBar extends StatelessWidget {
+  const _CareerProgressBar({
+    required this.summary,
+    required this.retirementYear,
+  });
+
+  final _PositionsSummary summary;
+  final int retirementYear;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final firstStart = summary.firstStart;
+    if (firstStart == null) return const SizedBox.shrink();
+    final now = DateTime.now();
+    final totalSpanMonths =
+        (retirementYear - firstStart.year) * 12 - firstStart.month + 1;
+    if (totalSpanMonths <= 0) return const SizedBox.shrink();
+
+    final workedF = (summary.workingMonths / totalSpanMonths).clamp(0.0, 1.0);
+    final gapF = (summary.gapMonths / totalSpanMonths).clamp(0.0, 1.0);
+    final toNowMonths = ((now.year - firstStart.year) * 12 +
+            (now.month - firstStart.month))
+        .clamp(0, totalSpanMonths);
+    final nowF = (toNowMonths / totalSpanMonths).clamp(0.0, 1.0);
+    final futureF = (1 - nowF).clamp(0.0, 1.0);
+
+    final cs = theme.colorScheme;
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Career summary', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            StatTile(
-              label: 'Experience',
-              value: _duration(s.totalMonths),
-              icon: Icons.schedule,
-            ),
-            StatTile(
-              label: 'Companies',
-              value: '${s.companies}',
-              icon: Icons.domain,
-            ),
-            StatTile(
-              label: 'Longest tenure',
-              value: _duration(s.longestTenureMonths),
-              hint: [s.longestTitle, s.longestCompany]
-                  .where((x) => x.isNotEmpty)
-                  .join(' · '),
-              icon: Icons.trending_up,
-            ),
-            if (s.firstYear != null)
-              StatTile(
-                label: 'Started working',
-                value: s.firstYear.toString(),
-                icon: Icons.flag_outlined,
+        LayoutBuilder(
+          builder: (ctx, c) {
+            final w = c.maxWidth;
+            return SizedBox(
+              height: 24,
+              child: Stack(
+                children: [
+                  Container(
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Flexible(
+                        flex: (workedF * 10000).round(),
+                        child: Container(
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: cs.primary,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(6),
+                              bottomLeft: Radius.circular(6),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Flexible(
+                        flex: (gapF * 10000).round(),
+                        child: Container(
+                          height: 24,
+                          color: cs.tertiaryContainer,
+                        ),
+                      ),
+                      Flexible(
+                        flex: (futureF * 10000).round(),
+                        child: const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    left: nowF * w - 1,
+                    top: -2,
+                    bottom: -2,
+                    child: Container(
+                      width: 2,
+                      decoration: BoxDecoration(
+                        color: cs.onSurface,
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            );
+          },
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Text(
+              '${firstStart.year}',
+              style: theme.textTheme.labelSmall,
+            ),
+            const Spacer(),
+            Text(
+              'Now · ${now.year}',
+              style: theme.textTheme.labelSmall,
+            ),
+            const Spacer(),
+            Text(
+              'Retire · $retirementYear',
+              style: theme.textTheme.labelSmall,
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 12,
+          runSpacing: 4,
+          children: [
+            _LegendDot(colour: cs.primary, label: 'In work'),
+            _LegendDot(colour: cs.tertiaryContainer, label: 'Between jobs'),
+            _LegendDot(
+              colour: cs.surfaceContainerHighest,
+              label: 'Future (projected)',
+            ),
           ],
         ),
       ],
-    ),
-  );
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.colour, required this.label});
+  final Color colour;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: colour,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
+      ],
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

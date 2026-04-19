@@ -24,7 +24,7 @@ class _NetworkScreenState extends ConsumerState<NetworkScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -48,6 +48,7 @@ class _NetworkScreenState extends ConsumerState<NetworkScreen>
             isScrollable: true,
             tabs: const [
               Tab(text: 'Connections'),
+              Tab(text: 'Companies'),
               Tab(text: 'Invitations'),
               Tab(text: 'Recommendations'),
               Tab(text: 'Endorsements'),
@@ -59,6 +60,7 @@ class _NetworkScreenState extends ConsumerState<NetworkScreen>
             controller: _tabs,
             children: [
               _ConnectionsTab(archive: archive),
+              _CompaniesTab(archive: archive),
               _InvitationsTab(archive: archive),
               _RecommendationsTab(archive: archive),
               _EndorsementsTab(archive: archive),
@@ -552,6 +554,246 @@ class _EndorsementsTabState extends State<_EndorsementsTab> {
       ],
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Companies tab
+
+class _CompaniesTab extends StatefulWidget {
+  const _CompaniesTab({required this.archive});
+  final LinkedInArchive archive;
+
+  @override
+  State<_CompaniesTab> createState() => _CompaniesTabState();
+}
+
+class _CompaniesTabState extends State<_CompaniesTab> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final file = widget.archive.file('Connections.csv');
+    if (file == null) return _empty('No Connections.csv in this archive.');
+
+    final companies = _aggregateCompanies(file, widget.archive);
+    final q = _query.toLowerCase();
+    final filtered = q.isEmpty
+        ? companies
+        : companies.where((c) => c.name.toLowerCase().contains(q)).toList();
+
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: TextField(
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Search companies',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: (v) => setState(() => _query = v.trim()),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '${_fmt(filtered.length)} of ${_fmt(companies.length)} companies · '
+              '${_fmt(filtered.fold<int>(0, (s, c) => s + c.count))} connections in view',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: filtered.length,
+            itemBuilder: (ctx, i) => _CompanyRow(entry: filtered[i]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CompanyEntry {
+  _CompanyEntry({
+    required this.name,
+    required this.count,
+    required this.topTitle,
+    required this.firstConnected,
+    required this.lastConnected,
+    required this.iWorkedHere,
+  });
+  final String name;
+  final int count;
+  final String? topTitle;
+  final DateTime? firstConnected;
+  final DateTime? lastConnected;
+  final bool iWorkedHere;
+}
+
+List<_CompanyEntry> _aggregateCompanies(
+    ParsedFile connections, LinkedInArchive archive) {
+  final companyIdx = connections.headers.indexOf('Company');
+  final titleIdx = connections.headers.indexOf('Position');
+  final dateIdx = connections.headers.indexOf('Connected On');
+
+  final counts = <String, int>{};
+  final titles = <String, Map<String, int>>{};
+  final earliest = <String, DateTime>{};
+  final latest = <String, DateTime>{};
+
+  for (final r in connections.rows) {
+    String at(int i) => (i < 0 || i >= r.length) ? '' : r[i];
+    final company = at(companyIdx);
+    if (company.isEmpty) continue;
+    counts[company] = (counts[company] ?? 0) + 1;
+    final title = at(titleIdx);
+    if (title.isNotEmpty) {
+      final bucket = titles.putIfAbsent(company, () => <String, int>{});
+      bucket[title] = (bucket[title] ?? 0) + 1;
+    }
+    final d = _parseLinkedinDate(at(dateIdx));
+    if (d != null) {
+      if (!earliest.containsKey(company) || d.isBefore(earliest[company]!)) {
+        earliest[company] = d;
+      }
+      if (!latest.containsKey(company) || d.isAfter(latest[company]!)) {
+        latest[company] = d;
+      }
+    }
+  }
+
+  // Companies the viewer worked at — bold them in the list.
+  final myEmployers = <String>{};
+  final positions = archive.file('Positions.csv');
+  if (positions != null) {
+    final pCompanyIdx = positions.headers.indexOf('Company Name');
+    for (final r in positions.rows) {
+      final c =
+          (pCompanyIdx >= 0 && pCompanyIdx < r.length) ? r[pCompanyIdx] : '';
+      if (c.isNotEmpty) myEmployers.add(c);
+    }
+  }
+
+  final entries = <_CompanyEntry>[];
+  for (final entry in counts.entries) {
+    final company = entry.key;
+    final topTitle = (titles[company] ?? const <String, int>{}).entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    entries.add(_CompanyEntry(
+      name: company,
+      count: entry.value,
+      topTitle: topTitle.isEmpty ? null : topTitle.first.key,
+      firstConnected: earliest[company],
+      lastConnected: latest[company],
+      iWorkedHere: myEmployers.contains(company),
+    ));
+  }
+  entries.sort((a, b) => b.count.compareTo(a.count));
+  return entries;
+}
+
+class _CompanyRow extends StatelessWidget {
+  const _CompanyRow({required this.entry});
+  final _CompanyEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dateFmt = DateFormat.yMMM();
+    final dates = [
+      if (entry.firstConnected != null) dateFmt.format(entry.firstConnected!),
+      if (entry.lastConnected != null &&
+          entry.firstConnected != entry.lastConnected)
+        dateFmt.format(entry.lastConnected!),
+    ].join(' → ');
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: entry.iWorkedHere
+            ? theme.colorScheme.primaryContainer
+            : theme.colorScheme.surfaceContainerHigh,
+        foregroundColor: entry.iWorkedHere
+            ? theme.colorScheme.onPrimaryContainer
+            : theme.colorScheme.onSurfaceVariant,
+        child: const Icon(Icons.domain, size: 18),
+      ),
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              entry.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyLarge,
+            ),
+          ),
+          if (entry.iWorkedHere) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'You worked here',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      subtitle: Text(
+        [
+          if (entry.topTitle != null) 'Top role: ${entry.topTitle}',
+          if (dates.isNotEmpty) dates,
+        ].join(' · '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${entry.count}',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Find ${entry.name} on LinkedIn',
+            icon: const Icon(Icons.open_in_new, size: 18),
+            onPressed: () => openLinkedInCompany(entry.name),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+DateTime? _parseLinkedinDate(String s) {
+  if (s.trim().isEmpty) return null;
+  const months = {
+    'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+    'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+  };
+  final parts = s.trim().split(RegExp(r'\s+'));
+  if (parts.length == 3) {
+    final d = int.tryParse(parts[0]);
+    final m = months[parts[1]];
+    final y = int.tryParse(parts[2]);
+    if (d != null && m != null && y != null) return DateTime.utc(y, m, d);
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

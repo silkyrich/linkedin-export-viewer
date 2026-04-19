@@ -176,6 +176,24 @@ class AboutScreen extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            const SizedBox(height: 16),
+            Text('Two export sizes', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 6),
+            Text(
+              'LinkedIn offers a "fast" archive (ready in seconds) and a '
+              '"complete" archive (ready within 24 hours, emailed). The '
+              'filename tells you which you got: fast archives are named '
+              '"Basic_LinkedInDataExport_...". LinkedOut! parses every '
+              'file in the fast archive, and most of the complete one. '
+              'What we don\'t render yet: the social-activity files only '
+              'present in the complete archive — Reactions.csv, '
+              'Shares.csv, Comments.csv, Votes.csv, saved_articles.csv. '
+              'If your profile looks thin here, it usually just means '
+              'you don\'t use that feature (no Premium subscription → no '
+              'Receipts; no ID verification → no Verifications; never '
+              'published → no Articles).',
+              style: theme.textTheme.bodySmall,
+            ),
           ],
         ),
       ),
