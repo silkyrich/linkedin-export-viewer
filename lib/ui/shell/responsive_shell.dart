@@ -29,6 +29,7 @@ const destinations = <ShellDestination>[
   ShellDestination(label: 'Content', icon: Icons.edit_note_outlined, selectedIcon: Icons.edit_note, route: '/content'),
   ShellDestination(label: 'Activity', icon: Icons.bolt_outlined, selectedIcon: Icons.bolt, route: '/activity'),
   ShellDestination(label: 'Account', icon: Icons.manage_accounts_outlined, selectedIcon: Icons.manage_accounts, route: '/account'),
+  ShellDestination(label: 'Advisor', icon: Icons.assistant_outlined, selectedIcon: Icons.assistant, route: '/advisor'),
 ];
 
 const _mobilePrimary = 4; // first 4 get tabs, rest live under "More"

@@ -6,6 +6,7 @@ import '../state/archive_controller.dart';
 import '../ui/screens/about_screen.dart';
 import '../ui/screens/account_screen.dart';
 import '../ui/screens/activity_screen.dart';
+import '../ui/screens/advisor_screen.dart';
 import '../ui/screens/career_screen.dart';
 import '../ui/screens/content_screen.dart';
 import '../ui/screens/landing_screen.dart';
@@ -73,6 +74,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           _fade('/content', const ContentScreen()),
           _fade('/activity', const ActivityScreen()),
           _fade('/account', const AccountScreen()),
+          _fade('/advisor', const AdvisorScreen()),
           _fade('/search', const SearchScreen()),
           GoRoute(
             path: '/raw/:path(.*)',
