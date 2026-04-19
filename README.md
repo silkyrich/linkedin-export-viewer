@@ -15,7 +15,7 @@ LinkedIn lets you download everything they've collected about you (Settings → 
 
 ## Status
 
-Bootstrap / Phase 0. See [`docs/PLAN.md`](./docs/PLAN.md) for the full roadmap.
+Live at https://silkyrich.github.io/linkedin-export-viewer/. All 9 export categories have dedicated screens, plus a message-flow timeline graph with filters, global search, dark mode, drag-and-drop upload, and deep-links back into LinkedIn. See [`docs/PLAN.md`](./docs/PLAN.md) for the full roadmap.
 
 ## Development
 
@@ -44,4 +44,4 @@ touch build/web/.nojekyll
 
 ## License
 
-MIT (see `LICENSE` once added).
+MIT — see [`LICENSE`](./LICENSE). Not affiliated with LinkedIn. "LinkedIn" is a trademark of LinkedIn Corporation; the schema names and CSV column headers used by this viewer come from the export LinkedIn provides to its own members.

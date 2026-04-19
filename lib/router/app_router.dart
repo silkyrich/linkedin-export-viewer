@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../state/archive_controller.dart';
+import '../ui/screens/about_screen.dart';
 import '../ui/screens/account_screen.dart';
 import '../ui/screens/activity_screen.dart';
 import '../ui/screens/career_screen.dart';
@@ -34,13 +35,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
 
       if (isLoading && loc != '/loading') return '/loading';
-      if (!isLoading && !hasArchive && loc != '/') return '/';
+      // Let / and /about render with no archive.
+      if (!isLoading && !hasArchive && loc != '/' && loc != '/about') {
+        return '/';
+      }
       if (hasArchive && (loc == '/' || loc == '/loading')) return '/me';
       return null;
     },
     routes: [
       GoRoute(path: '/', builder: (c, s) => const LandingScreen()),
       GoRoute(path: '/loading', builder: (c, s) => const LoadingScreen()),
+      GoRoute(
+        path: '/about',
+        builder: (c, s) {
+          final hasArchive =
+              ref.read(archiveControllerProvider).valueOrNull != null;
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('About'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => c.go(hasArchive ? '/me' : '/'),
+              ),
+            ),
+            body: const AboutScreen(),
+          );
+        },
+      ),
       ShellRoute(
         builder: (c, s, child) => ResponsiveShell(child: child),
         routes: [

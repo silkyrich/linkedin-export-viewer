@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../state/archive_controller.dart';
 import '../shell/dropzone_stub.dart'
@@ -71,6 +72,11 @@ class LandingScreen extends ConsumerWidget {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                       textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () => context.go('/about'),
+                      child: const Text('About · MIT License'),
                     ),
                   ],
                 ),

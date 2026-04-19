@@ -61,6 +61,11 @@ class PrivacyBanner extends ConsumerWidget {
               icon: const Icon(Icons.search),
               onPressed: () => context.go('/search'),
             ),
+            IconButton(
+              tooltip: 'About',
+              icon: const Icon(Icons.info_outline),
+              onPressed: () => context.go('/about'),
+            ),
             _ThemeToggle(),
             TextButton(
               onPressed: () =>
