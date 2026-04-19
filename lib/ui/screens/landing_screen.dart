@@ -107,6 +107,8 @@ class LandingScreen extends ConsumerWidget {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 32),
+                      const _WhatYoullSee(),
+                      const SizedBox(height: 32),
                       Text(
                         'How to get your export: linkedin.com → Me → Settings → '
                         'Data privacy → Get a copy of your data.',
@@ -128,6 +130,73 @@ class LandingScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _WhatYoullSee extends StatelessWidget {
+  const _WhatYoullSee();
+
+  static const _items = <(IconData, String, String)>[
+    (Icons.person_outline, 'Me', 'Profile, registration, emails, phones, languages.'),
+    (Icons.people_outline, 'Network', '2k+ connections, invitations, endorsements, recommendations.'),
+    (Icons.chat_bubble_outline, 'Messages', 'Every DM you ever sent or received, filterable by direction and time.'),
+    (Icons.work_outline, 'Career', 'Positions, job applications, saved jobs, seeker preferences.'),
+    (Icons.school_outlined, 'Learning', 'Course history and any articles you\'ve published.'),
+    (Icons.workspace_premium_outlined, 'Skills', 'Declared skills, endorsements, education, verifications.'),
+    (Icons.edit_note_outlined, 'Content', 'Publications, projects, uploaded images.'),
+    (Icons.bolt_outlined, 'Activity', 'Companies followed, events attended.'),
+    (Icons.manage_accounts_outlined, 'Account', 'Premium receipts, and the full list of ad-targeting segments LinkedIn has classified you into.'),
+    (Icons.assistant_outlined, 'Advisor', 'Export a prompt-prefixed Markdown dossier to paste into ChatGPT, Claude, or any LLM.'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('What you\'ll see', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        Text(
+          'LinkedIn\'s export is about 30 raw CSV files. This viewer '
+          'groups them into ten tabs:',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (final item in _items)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(item.$1, size: 18, color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: theme.textTheme.bodySmall,
+                      children: [
+                        TextSpan(
+                          text: '${item.$2}. ',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        TextSpan(
+                          text: item.$3,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
