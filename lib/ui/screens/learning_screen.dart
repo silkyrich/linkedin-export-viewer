@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
 import '../../models/parsed_file.dart';
 import '../../state/archive_controller.dart';
@@ -97,18 +98,31 @@ class _CoursesTab extends StatelessWidget {
           leading: Icon(type == 'VIDEO' ? Icons.play_circle_outline : Icons.school_outlined),
           title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(desc, maxLines: 1, overflow: TextOverflow.ellipsis),
+          onTap: () => openLinkedInLearning(title),
           trailing: SizedBox(
-            width: 120,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
+            width: 150,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (completed.isNotEmpty)
-                  Text('✓ $completed',
-                      style: Theme.of(context).textTheme.labelSmall)
-                else if (watched.isNotEmpty)
-                  Text(watched,
-                      style: Theme.of(context).textTheme.labelSmall),
+                Flexible(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (completed.isNotEmpty)
+                        Text('✓ $completed',
+                            style: Theme.of(context).textTheme.labelSmall)
+                      else if (watched.isNotEmpty)
+                        Text(watched,
+                            style: Theme.of(context).textTheme.labelSmall),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Find on LinkedIn Learning',
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  onPressed: () => openLinkedInLearning(title),
+                ),
               ],
             ),
           ),

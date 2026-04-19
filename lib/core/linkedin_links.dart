@@ -33,3 +33,25 @@ void openExternalUrl(String url) {
   if (url.trim().isEmpty) return;
   openUrl(url.trim());
 }
+
+/// Open a LinkedIn search for a school by name.
+void openLinkedInSchool(String name) {
+  final q = Uri.encodeComponent(name.trim());
+  if (q.isEmpty) return;
+  openUrl('https://www.linkedin.com/search/results/schools/?keywords=$q');
+}
+
+/// Open LinkedIn Learning search for a course title.
+void openLinkedInLearning(String title) {
+  final q = Uri.encodeComponent(title.trim());
+  if (q.isEmpty) return;
+  openUrl('https://www.linkedin.com/learning/search?keywords=$q');
+}
+
+/// Open a global keyword search — used for Skills chips and anywhere else
+/// we have a term but no URL / typed category.
+void openLinkedInKeywordSearch(String term) {
+  final q = Uri.encodeComponent(term.trim());
+  if (q.isEmpty) return;
+  openUrl('https://www.linkedin.com/search/results/all/?keywords=$q');
+}

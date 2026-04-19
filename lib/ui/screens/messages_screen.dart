@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
 import '../../models/entities/message.dart';
 import '../../state/archive_controller.dart';
@@ -210,6 +211,21 @@ class _ThreadView extends StatelessWidget {
                     m.from,
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
+                  if (m.senderProfileUrl.isNotEmpty || m.from.isNotEmpty)
+                    IconButton(
+                      iconSize: 16,
+                      padding: const EdgeInsets.only(left: 6),
+                      constraints: const BoxConstraints(),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: m.senderProfileUrl.isNotEmpty
+                          ? 'Open sender on LinkedIn'
+                          : 'Search sender on LinkedIn',
+                      icon: const Icon(Icons.open_in_new),
+                      onPressed: () => openLinkedInProfile(
+                        url: m.senderProfileUrl,
+                        name: m.from,
+                      ),
+                    ),
                   const Spacer(),
                   Text(
                     m.date == null ? '' : _dateFmt.format(m.date!),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
 import '../../state/archive_controller.dart';
 import '../widgets/kv_card.dart';
@@ -45,7 +46,14 @@ Widget _skillsCard(LinkedInArchive archive, ThemeData theme) {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [for (final s in skills) Chip(label: Text(s))],
+            children: [
+              for (final s in skills)
+                ActionChip(
+                  label: Text(s),
+                  onPressed: () => openLinkedInKeywordSearch(s),
+                  tooltip: 'Search "$s" on LinkedIn',
+                ),
+            ],
           ),
         ],
       ),
@@ -65,13 +73,26 @@ List<Widget> _educationCards(LinkedInArchive archive) {
 
     final school = field('School Name');
     if (school.isEmpty) continue;
-    cards.add(KvCard(
-      title: school,
-      entries: [
-        MapEntry('Degree', field('Degree Name')),
-        MapEntry('Dates', '${field('Start Date')} – ${field('End Date')}'),
-        MapEntry('Notes', field('Notes')),
-        MapEntry('Activities', field('Activities')),
+    cards.add(Stack(
+      children: [
+        KvCard(
+          title: school,
+          entries: [
+            MapEntry('Degree', field('Degree Name')),
+            MapEntry('Dates', '${field('Start Date')} – ${field('End Date')}'),
+            MapEntry('Notes', field('Notes')),
+            MapEntry('Activities', field('Activities')),
+          ],
+        ),
+        Positioned(
+          right: 20,
+          top: 16,
+          child: IconButton(
+            tooltip: 'Find $school on LinkedIn',
+            icon: const Icon(Icons.open_in_new, size: 18),
+            onPressed: () => openLinkedInSchool(school),
+          ),
+        ),
       ],
     ));
   }
@@ -82,11 +103,31 @@ Widget _verificationCard(LinkedInArchive archive) {
   final file = archive.file('Verifications/Verifications.csv');
   if (file == null || file.rows.isEmpty) return const SizedBox.shrink();
   final row = file.rows.first;
+  String field(String k) {
+    final idx = file.headers.indexOf(k);
+    return (idx == -1 || idx >= row.length) ? '' : row[idx];
+  }
+
   final entries = <MapEntry<String, String>>[];
   for (var i = 0; i < file.headers.length; i++) {
     final v = i < row.length ? row[i] : '';
     if (v.trim().isEmpty) continue;
     entries.add(MapEntry(file.headers[i], v));
   }
-  return KvCard(title: 'Identity Verification', entries: entries);
+  final org = field('Organization name');
+  return Stack(
+    children: [
+      KvCard(title: 'Identity Verification', entries: entries),
+      if (org.isNotEmpty)
+        Positioned(
+          right: 20,
+          top: 16,
+          child: IconButton(
+            tooltip: 'Find $org on LinkedIn',
+            icon: const Icon(Icons.open_in_new, size: 18),
+            onPressed: () => openLinkedInCompany(org),
+          ),
+        ),
+    ],
+  );
 }

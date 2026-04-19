@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
 import '../../models/entities/message.dart';
 import '../../state/archive_controller.dart';
@@ -163,84 +164,115 @@ class _ResultsList extends StatelessWidget {
         label: 'Connections',
         icon: Icons.person_outline,
         route: '/network',
+        linkKind: _LinkKind.profile,
+        nameHeaders: ['First Name', 'Last Name'],
+        urlHeader: 'URL',
       ),
       _CsvSource(
         path: 'Recommendations_Received.csv',
         label: 'Recommendations received',
         icon: Icons.star_outline,
         route: '/network',
+        linkKind: _LinkKind.profile,
+        nameHeaders: ['First Name', 'Last Name'],
       ),
       _CsvSource(
         path: 'Recommendations_Given.csv',
         label: 'Recommendations given',
         icon: Icons.star_border,
         route: '/network',
+        linkKind: _LinkKind.profile,
+        nameHeaders: ['First Name', 'Last Name'],
       ),
       _CsvSource(
         path: 'Endorsement_Received_Info.csv',
         label: 'Endorsements received',
         icon: Icons.thumb_up_outlined,
         route: '/network',
+        linkKind: _LinkKind.profile,
+        nameHeaders: ['Endorser First Name', 'Endorser Last Name'],
+        urlHeader: 'Endorser Public Url',
       ),
       _CsvSource(
         path: 'Endorsement_Given_Info.csv',
         label: 'Endorsements given',
         icon: Icons.thumb_up_alt_outlined,
         route: '/network',
+        linkKind: _LinkKind.profile,
+        nameHeaders: ['Endorsee First Name', 'Endorsee Last Name'],
+        urlHeader: 'Endorsee Public Url',
       ),
       _CsvSource(
         path: 'Invitations.csv',
         label: 'Invitations',
         icon: Icons.how_to_reg_outlined,
         route: '/network',
+        linkKind: _LinkKind.profile,
+        nameHeaders: ['From'],
+        urlHeader: 'inviterProfileUrl',
       ),
       _CsvSource(
         path: 'Positions.csv',
         label: 'Positions',
         icon: Icons.work_outline,
         route: '/career',
+        linkKind: _LinkKind.company,
+        nameHeaders: ['Company Name'],
       ),
       _CsvSource(
         path: 'Jobs/Job Applications.csv',
         label: 'Job applications',
         icon: Icons.assignment_outlined,
         route: '/career',
+        linkKind: _LinkKind.jobUrl,
+        urlHeader: 'Job Url',
+        nameHeaders: ['Job Title'],
       ),
       _CsvSource(
         path: 'Jobs/Saved Jobs.csv',
         label: 'Saved jobs',
         icon: Icons.bookmark_outline,
         route: '/career',
+        linkKind: _LinkKind.jobUrl,
+        urlHeader: 'Job Url',
+        nameHeaders: ['Job Title'],
       ),
       _CsvSource(
         path: 'Skills.csv',
         label: 'Skills',
         icon: Icons.workspace_premium_outlined,
         route: '/skills',
+        linkKind: _LinkKind.none,
       ),
       _CsvSource(
         path: 'Learning.csv',
         label: 'Learning',
         icon: Icons.school_outlined,
         route: '/learning',
+        linkKind: _LinkKind.learning,
+        nameHeaders: ['Content Title'],
       ),
       _CsvSource(
         path: 'Publications.csv',
         label: 'Publications',
         icon: Icons.article_outlined,
         route: '/content',
+        linkKind: _LinkKind.none,
       ),
       _CsvSource(
         path: 'Projects.csv',
         label: 'Projects',
         icon: Icons.folder_outlined,
         route: '/content',
+        linkKind: _LinkKind.none,
       ),
       _CsvSource(
         path: 'Company Follows.csv',
         label: 'Company follows',
         icon: Icons.domain,
         route: '/activity',
+        linkKind: _LinkKind.company,
+        nameHeaders: ['Organization'],
       ),
     ];
 
@@ -254,7 +286,12 @@ class _ResultsList extends StatelessWidget {
         if (match == null) continue;
         total++;
         if (hits.length < perCategoryCap) {
-          hits.add(_CsvHit(row: row, headers: file.headers, matchedCell: match));
+          hits.add(_CsvHit(
+            row: row,
+            headers: file.headers,
+            matchedCell: match,
+            source: s,
+          ));
         }
       }
       if (total == 0) continue;
@@ -278,17 +315,50 @@ class _ResultsList extends StatelessWidget {
   }
 }
 
+enum _LinkKind { profile, company, jobUrl, school, learning, none }
+
 class _CsvSource {
   const _CsvSource({
     required this.path,
     required this.label,
     required this.icon,
     required this.route,
+    required this.linkKind,
+    this.nameHeaders = const [],
+    this.urlHeader,
   });
   final String path;
   final String label;
   final IconData icon;
   final String route;
+  final _LinkKind linkKind;
+
+  /// CSV headers that combine into a person/company/school name.
+  final List<String> nameHeaders;
+
+  /// CSV header holding a URL (profile or job). null when only name available.
+  final String? urlHeader;
+}
+
+void _launchHit(
+  _LinkKind kind,
+  String? url,
+  String? name,
+) {
+  switch (kind) {
+    case _LinkKind.profile:
+      openLinkedInProfile(url: url, name: name);
+    case _LinkKind.company:
+      if (name != null) openLinkedInCompany(name);
+    case _LinkKind.jobUrl:
+      if (url != null) openLinkedInJob(url);
+    case _LinkKind.school:
+      if (name != null) openLinkedInSchool(name);
+    case _LinkKind.learning:
+      if (name != null) openLinkedInLearning(name);
+    case _LinkKind.none:
+      break;
+  }
 }
 
 class _ResultGroup {
@@ -357,6 +427,7 @@ class _MessageHit extends StatelessWidget {
       _firstLineMatching(message.content, query),
       query,
     );
+    final hasContact = message.senderProfileUrl.isNotEmpty || message.from.isNotEmpty;
     return ListTile(
       dense: true,
       leading: const Icon(Icons.chat_bubble_outline),
@@ -366,9 +437,29 @@ class _MessageHit extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: snippet,
-      trailing: Text(
-        message.date == null ? '' : _dateFmt.format(message.date!),
-        style: Theme.of(context).textTheme.labelSmall,
+      trailing: SizedBox(
+        width: 140,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Flexible(
+              child: Text(
+                message.date == null ? '' : _dateFmt.format(message.date!),
+                textAlign: TextAlign.right,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ),
+            if (hasContact)
+              IconButton(
+                tooltip: 'Open sender on LinkedIn',
+                icon: const Icon(Icons.open_in_new, size: 18),
+                onPressed: () => openLinkedInProfile(
+                  url: message.senderProfileUrl,
+                  name: message.from,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -382,10 +473,29 @@ class _CsvHit {
     required this.row,
     required this.headers,
     required this.matchedCell,
+    required this.source,
   });
   final List<String> row;
   final List<String> headers;
   final String matchedCell;
+  final _CsvSource source;
+
+  String _byHeader(String key) {
+    final idx = headers.indexOf(key);
+    return (idx == -1 || idx >= row.length) ? '' : row[idx];
+  }
+
+  String? get linkName {
+    final parts = source.nameHeaders.map(_byHeader).where((s) => s.isNotEmpty);
+    final joined = parts.join(' ').trim();
+    return joined.isEmpty ? null : joined;
+  }
+
+  String? get linkUrl {
+    if (source.urlHeader == null) return null;
+    final v = _byHeader(source.urlHeader!);
+    return v.isEmpty ? null : v;
+  }
 }
 
 class _CsvHitTile extends StatelessWidget {
@@ -395,14 +505,24 @@ class _CsvHitTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use the first cell as the title when possible; fall back to the matched cell.
-    final title = hit.row.isNotEmpty && hit.row.first.trim().isNotEmpty
-        ? hit.row.first
-        : hit.matchedCell;
+    final title = hit.linkName ??
+        (hit.row.isNotEmpty && hit.row.first.trim().isNotEmpty
+            ? hit.row.first
+            : hit.matchedCell);
+    final canLink = hit.source.linkKind != _LinkKind.none &&
+        (hit.linkUrl != null || hit.linkName != null);
     return ListTile(
       dense: true,
       title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: _highlight(context, hit.matchedCell, query),
+      trailing: canLink
+          ? IconButton(
+              tooltip: 'Open on LinkedIn',
+              icon: const Icon(Icons.open_in_new, size: 18),
+              onPressed: () =>
+                  _launchHit(hit.source.linkKind, hit.linkUrl, hit.linkName),
+            )
+          : null,
     );
   }
 }

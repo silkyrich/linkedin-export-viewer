@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
 import '../../state/archive_controller.dart';
 import '../../state/flow_index.dart';
@@ -35,12 +36,26 @@ class SummaryCard extends ConsumerWidget {
               children: [
                 Icon(Icons.auto_graph, color: theme.colorScheme.onPrimaryContainer),
                 const SizedBox(width: 8),
-                Text(
-                  "What's in this archive",
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
+                Expanded(
+                  child: Text(
+                    "What's in this archive",
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
                   ),
                 ),
+                if (flow != null && flow.meProfileUrl.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Open your profile on LinkedIn',
+                    icon: Icon(
+                      Icons.open_in_new,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                    onPressed: () => openLinkedInProfile(
+                      url: flow.meProfileUrl,
+                      name: flow.meName,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -73,27 +88,39 @@ class SummaryCard extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               for (final c in stats.topContacts)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          c.name,
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                InkWell(
+                  onTap: () => openLinkedInProfile(
+                    url: c.key.startsWith('url:') ? c.key.substring(4) : null,
+                    name: c.name,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            c.name,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${c.totalOutgoing} sent · ${c.totalIncoming} received',
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onPrimaryContainer,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      Text(
-                        '${c.totalOutgoing} sent · ${c.totalIncoming} received',
-                        style: theme.textTheme.bodySmall?.copyWith(
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.open_in_new,
+                          size: 14,
                           color: theme.colorScheme.onPrimaryContainer,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
             ],
