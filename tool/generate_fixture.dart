@@ -1101,5 +1101,5 @@ void _zipFixtures() {
     );
   }
   final encoded = ZipEncoder().encode(archive);
-  File(_zipPath).writeAsBytesSync(encoded!);
+  File(_zipPath).writeAsBytesSync(encoded);
 }

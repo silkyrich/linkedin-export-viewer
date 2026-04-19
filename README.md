@@ -19,7 +19,7 @@ Live at https://silkyrich.github.io/linkedin-export-viewer/. All 9 export catego
 
 ## Development
 
-Requires Flutter stable (3.38+).
+Requires Flutter stable (3.41+).
 
 ```bash
 flutter pub get

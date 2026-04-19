@@ -61,7 +61,7 @@ class ArchiveController extends AsyncNotifier<LinkedInArchive?> {
   /// Picks a zip and returns its bytes. Lets the UI confirm before we parse
   /// something unexpectedly huge.
   Future<Uint8List?> pickBytes() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['zip'],
       withData: true,
