@@ -141,28 +141,104 @@ String _fmt(int n) => NumberFormat.decimalPattern().format(n);
 // ---------------------------------------------------------------------------
 // Connections tab
 
-class _ConnectionsTab extends StatelessWidget {
+class _ConnectionsTab extends StatefulWidget {
   const _ConnectionsTab({required this.archive});
   final LinkedInArchive archive;
 
   @override
+  State<_ConnectionsTab> createState() => _ConnectionsTabState();
+}
+
+class _ConnectionsTabState extends State<_ConnectionsTab> {
+  String? _companyFilter; // null = all
+
+  @override
   Widget build(BuildContext context) {
-    final file = archive.file('Connections.csv');
+    final file = widget.archive.file('Connections.csv');
     if (file == null) return _empty('No Connections.csv in this archive.');
-    return _SearchableList(
-      hint: 'Search connections',
-      itemCount: file.rows.length,
-      totalLabel: (shown, total) => total == shown
-          ? '${_fmt(total)} connections'
-          : '${_fmt(shown)} of ${_fmt(total)} connections',
-      matches: (i, q) {
-        final r = file.rows[i];
-        for (final cell in r) {
-          if (cell.toLowerCase().contains(q)) return true;
-        }
-        return false;
-      },
-      rowBuilder: (ctx, i) => _ConnectionRow(file: file, row: file.rows[i]),
+    final companyIdx = file.headers.indexOf('Company');
+
+    // Build top-companies list for the filter dropdown. Sorted by
+    // connection count, capped at 20.
+    final counts = <String, int>{};
+    for (final r in file.rows) {
+      final c = (companyIdx >= 0 && companyIdx < r.length) ? r[companyIdx] : '';
+      if (c.isEmpty) continue;
+      counts[c] = (counts[c] ?? 0) + 1;
+    }
+    final topCompanies = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topCapped = topCompanies.take(20).toList();
+
+    return Column(
+      children: [
+        if (topCapped.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: _companyFilter,
+                    decoration: const InputDecoration(
+                      labelText: 'Filter by employer',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All companies'),
+                      ),
+                      for (final e in topCapped)
+                        DropdownMenuItem<String?>(
+                          value: e.key,
+                          child: Text(
+                            '${e.key}  ·  ${e.value}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _companyFilter = v),
+                  ),
+                ),
+                if (_companyFilter != null)
+                  IconButton(
+                    tooltip: 'Clear company filter',
+                    icon: const Icon(Icons.close),
+                    onPressed: () => setState(() => _companyFilter = null),
+                  ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: _SearchableList(
+            hint: 'Search connections',
+            itemCount: file.rows.length,
+            totalLabel: (shown, total) => total == shown
+                ? '${_fmt(total)} connections'
+                : '${_fmt(shown)} of ${_fmt(total)} connections',
+            matches: (i, q) {
+              final r = file.rows[i];
+              // Company filter first — cheap.
+              if (_companyFilter != null) {
+                final c = (companyIdx >= 0 && companyIdx < r.length)
+                    ? r[companyIdx]
+                    : '';
+                if (c != _companyFilter) return false;
+                if (q.isEmpty) return true;
+              }
+              for (final cell in r) {
+                if (cell.toLowerCase().contains(q)) return true;
+              }
+              return false;
+            },
+            rowBuilder: (ctx, i) =>
+                _ConnectionRow(file: file, row: file.rows[i]),
+          ),
+        ),
+      ],
     );
   }
 }

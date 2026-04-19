@@ -9,6 +9,7 @@ import '../ui/screens/activity_screen.dart';
 import '../ui/screens/advisor_screen.dart';
 import '../ui/screens/career_screen.dart';
 import '../ui/screens/content_screen.dart';
+import '../ui/screens/insights_screen.dart';
 import '../ui/screens/landing_screen.dart';
 import '../ui/screens/learning_screen.dart';
 import '../ui/screens/loading_screen.dart';
@@ -66,6 +67,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (c, s, child) => ResponsiveShell(child: child),
         routes: [
           _fade('/me', const MeScreen()),
+          _fade('/insights', const InsightsScreen()),
           _fade('/network', const NetworkScreen()),
           _fade('/messages', const MessagesScreen()),
           _fade('/career', const CareerScreen()),

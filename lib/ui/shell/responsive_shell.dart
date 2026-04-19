@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../state/archive_controller.dart';
 import 'privacy_banner.dart';
 
 class ShellDestination {
@@ -17,44 +19,71 @@ class ShellDestination {
   final String route;
 }
 
-/// All 9 categories. On mobile the first 4 live in the bottom NavigationBar
-/// with a 'More' tab opening a bottom sheet of the rest.
-const destinations = <ShellDestination>[
-  ShellDestination(label: 'Me', icon: Icons.person_outline, selectedIcon: Icons.person, route: '/me'),
-  ShellDestination(label: 'Network', icon: Icons.people_outline, selectedIcon: Icons.people, route: '/network'),
-  ShellDestination(label: 'Messages', icon: Icons.chat_bubble_outline, selectedIcon: Icons.chat_bubble, route: '/messages'),
-  ShellDestination(label: 'Career', icon: Icons.work_outline, selectedIcon: Icons.work, route: '/career'),
-  ShellDestination(label: 'Learning', icon: Icons.school_outlined, selectedIcon: Icons.school, route: '/learning'),
-  ShellDestination(label: 'Skills', icon: Icons.workspace_premium_outlined, selectedIcon: Icons.workspace_premium, route: '/skills'),
-  ShellDestination(label: 'Content', icon: Icons.edit_note_outlined, selectedIcon: Icons.edit_note, route: '/content'),
-  ShellDestination(label: 'Activity', icon: Icons.bolt_outlined, selectedIcon: Icons.bolt, route: '/activity'),
-  ShellDestination(label: 'Account', icon: Icons.manage_accounts_outlined, selectedIcon: Icons.manage_accounts, route: '/account'),
-  ShellDestination(label: 'Advisor', icon: Icons.assistant_outlined, selectedIcon: Icons.assistant, route: '/advisor'),
-];
+/// Destination list. The /me route takes the archive owner's first name
+/// as its label (falls back to "You" if we can't derive one).
+List<ShellDestination> _destinationsFor(String meLabel) {
+  return [
+    ShellDestination(label: meLabel, icon: Icons.person_outline, selectedIcon: Icons.person, route: '/me'),
+    const ShellDestination(label: 'Insights', icon: Icons.insights_outlined, selectedIcon: Icons.insights, route: '/insights'),
+    const ShellDestination(label: 'Network', icon: Icons.people_outline, selectedIcon: Icons.people, route: '/network'),
+    const ShellDestination(label: 'Messages', icon: Icons.chat_bubble_outline, selectedIcon: Icons.chat_bubble, route: '/messages'),
+    const ShellDestination(label: 'Career', icon: Icons.work_outline, selectedIcon: Icons.work, route: '/career'),
+    const ShellDestination(label: 'Learning', icon: Icons.school_outlined, selectedIcon: Icons.school, route: '/learning'),
+    const ShellDestination(label: 'Skills', icon: Icons.workspace_premium_outlined, selectedIcon: Icons.workspace_premium, route: '/skills'),
+    const ShellDestination(label: 'Content', icon: Icons.edit_note_outlined, selectedIcon: Icons.edit_note, route: '/content'),
+    const ShellDestination(label: 'Activity', icon: Icons.bolt_outlined, selectedIcon: Icons.bolt, route: '/activity'),
+    const ShellDestination(label: 'Account', icon: Icons.manage_accounts_outlined, selectedIcon: Icons.manage_accounts, route: '/account'),
+    const ShellDestination(label: 'Advisor', icon: Icons.assistant_outlined, selectedIcon: Icons.assistant, route: '/advisor'),
+  ];
+}
+
+/// Derive a short label for the /me tab from Profile.csv first name.
+String _meLabel(WidgetRef ref) {
+  final archive = ref.watch(archiveControllerProvider).valueOrNull;
+  if (archive == null) return 'You';
+  final profile = archive.file('Profile.csv');
+  if (profile == null || profile.rows.isEmpty) return 'You';
+  final headers = profile.headers;
+  final row = profile.rows.first;
+  final firstIdx = headers.indexOf('First Name');
+  if (firstIdx < 0 || firstIdx >= row.length) return 'You';
+  final first = row[firstIdx].trim();
+  if (first.isEmpty) return 'You';
+  // Keep it short for the bottom nav — no more than 10 chars.
+  return first.length > 10 ? '${first.substring(0, 9)}…' : first;
+}
 
 const _mobilePrimary = 4; // first 4 get tabs, rest live under "More"
 
-class ResponsiveShell extends StatelessWidget {
+class ResponsiveShell extends ConsumerWidget {
   const ResponsiveShell({required this.child, super.key});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final destinations = _destinationsFor(_meLabel(ref));
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
-        if (w < 600) return _MobileShell(child: child);
-        return _DesktopShell(extended: w > 1024, child: child);
+        if (w < 600) {
+          return _MobileShell(destinations: destinations, child: child);
+        }
+        return _DesktopShell(
+          extended: w > 1024,
+          destinations: destinations,
+          child: child,
+        );
       },
     );
   }
 }
 
 class _MobileShell extends StatelessWidget {
-  const _MobileShell({required this.child});
+  const _MobileShell({required this.child, required this.destinations});
 
   final Widget child;
+  final List<ShellDestination> destinations;
 
   @override
   Widget build(BuildContext context) {
@@ -123,10 +152,15 @@ class _MobileShell extends StatelessWidget {
 }
 
 class _DesktopShell extends StatelessWidget {
-  const _DesktopShell({required this.child, required this.extended});
+  const _DesktopShell({
+    required this.child,
+    required this.extended,
+    required this.destinations,
+  });
 
   final Widget child;
   final bool extended;
+  final List<ShellDestination> destinations;
 
   @override
   Widget build(BuildContext context) {
