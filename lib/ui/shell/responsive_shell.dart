@@ -79,6 +79,13 @@ class ResponsiveShell extends ConsumerWidget {
   }
 }
 
+/// True when [location] is the route itself or one of its subpaths
+/// (e.g. /career matches /career/2, but /me does NOT match /messages).
+bool _routeMatches(String location, String route) {
+  if (location == route) return true;
+  return location.startsWith('$route/') || location.startsWith('$route?');
+}
+
 class _MobileShell extends StatelessWidget {
   const _MobileShell({required this.child, required this.destinations});
 
@@ -90,7 +97,8 @@ class _MobileShell extends StatelessWidget {
     final location = GoRouterState.of(context).uri.toString();
     final primary = destinations.take(_mobilePrimary).toList();
     final overflow = destinations.skip(_mobilePrimary).toList();
-    final primaryIndex = primary.indexWhere((d) => location.startsWith(d.route));
+    final primaryIndex =
+        primary.indexWhere((d) => _routeMatches(location, d.route));
     final selected = primaryIndex == -1 ? _mobilePrimary : primaryIndex;
 
     return Scaffold(
@@ -166,7 +174,7 @@ class _DesktopShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     final selected = destinations
-        .indexWhere((d) => location.startsWith(d.route))
+        .indexWhere((d) => _routeMatches(location, d.route))
         .clamp(0, destinations.length - 1);
     return Scaffold(
       body: SafeArea(

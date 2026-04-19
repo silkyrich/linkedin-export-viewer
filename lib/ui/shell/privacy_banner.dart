@@ -5,10 +5,128 @@ import 'package:go_router/go_router.dart';
 import '../../state/archive_controller.dart';
 import '../../state/theme_controller.dart';
 
-/// Visible reassurance that nothing leaves the browser.
+/// Visible reassurance that nothing leaves the browser — but a light one.
 ///
-/// Displayed at the top of every screen when an archive is loaded.
+/// The first iteration of this banner was a full sentence + four buttons,
+/// which ate roughly 60 px of every screen's vertical real estate. This
+/// version is a single 44 px strip: a lock icon, a short label that
+/// collapses to just the icon below 500 px, and four icon-only actions.
+/// "Clear data" was a fat text button; now it's an icon with a confirm
+/// dialog so we don't accidentally wipe on misclick.
+class PrivacyBanner extends ConsumerWidget {
+  const PrivacyBanner({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final hasArchive = ref.watch(
+      archiveControllerProvider.select((s) => s.valueOrNull != null),
+    );
+    if (!hasArchive) return const SizedBox.shrink();
+    final onBg = theme.colorScheme.onSecondaryContainer;
+
+    return Material(
+      color: theme.colorScheme.secondaryContainer,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tight = constraints.maxWidth < 500;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            child: Row(
+              children: [
+                const SizedBox(width: 6),
+                Icon(Icons.lock_outline, size: 16, color: onBg),
+                const SizedBox(width: 8),
+                if (!tight)
+                  Expanded(
+                    child: Text(
+                      'Private. Stays in this tab.',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: onBg,
+                      ),
+                    ),
+                  )
+                else
+                  const Spacer(),
+                _BannerIconButton(
+                  tooltip: 'Search everything',
+                  icon: Icons.search,
+                  onPressed: () => context.go('/search'),
+                ),
+                _BannerIconButton(
+                  tooltip: 'About',
+                  icon: Icons.info_outline,
+                  onPressed: () => context.go('/about'),
+                ),
+                const _ThemeToggle(),
+                _BannerIconButton(
+                  tooltip: 'Clear data (wipe the cached archive)',
+                  icon: Icons.delete_sweep_outlined,
+                  onPressed: () => _confirmClear(context, ref),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear archive?'),
+        content: const Text(
+          'This removes the cached zip from this browser. You\'ll need '
+          'to upload it again (or use the demo data) next time.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(archiveControllerProvider.notifier).clear();
+    }
+  }
+}
+
+/// Compact icon button with lighter padding than IconButton's default so
+/// the banner stays short on mobile.
+class _BannerIconButton extends StatelessWidget {
+  const _BannerIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      icon: Icon(icon, size: 20),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.all(6),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      onPressed: onPressed,
+    );
+  }
+}
+
 class _ThemeToggle extends ConsumerWidget {
+  const _ThemeToggle();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(themeModeProvider);
@@ -22,59 +140,10 @@ class _ThemeToggle extends ConsumerWidget {
       ThemeMode.light => 'Theme: light',
       ThemeMode.dark => 'Theme: dark',
     };
-    return IconButton(
+    return _BannerIconButton(
       tooltip: '$tooltip (tap to cycle)',
-      icon: Icon(icon),
+      icon: icon,
       onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
-    );
-  }
-}
-
-class PrivacyBanner extends ConsumerWidget {
-  const PrivacyBanner({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final hasArchive = ref.watch(
-      archiveControllerProvider.select((s) => s.valueOrNull != null),
-    );
-    if (!hasArchive) return const SizedBox.shrink();
-    return Material(
-      color: theme.colorScheme.secondaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Icon(Icons.lock_outline, size: 18, color: theme.colorScheme.onSecondaryContainer),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Your data stays in this browser tab. Nothing uploaded.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSecondaryContainer,
-                ),
-              ),
-            ),
-            IconButton(
-              tooltip: 'Search everything',
-              icon: const Icon(Icons.search),
-              onPressed: () => context.go('/search'),
-            ),
-            IconButton(
-              tooltip: 'About',
-              icon: const Icon(Icons.info_outline),
-              onPressed: () => context.go('/about'),
-            ),
-            _ThemeToggle(),
-            TextButton(
-              onPressed: () =>
-                  ref.read(archiveControllerProvider.notifier).clear(),
-              child: const Text('Clear data'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

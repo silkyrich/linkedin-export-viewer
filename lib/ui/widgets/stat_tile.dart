@@ -20,7 +20,8 @@ class StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      constraints: const BoxConstraints(minWidth: 140, minHeight: 82),
+      width: 164,
+      height: 92,
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
@@ -37,9 +38,11 @@ class StatTile extends StatelessWidget {
                 Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: 6),
               ],
-              Expanded(
+              Flexible(
                 child: Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -50,6 +53,8 @@ class StatTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontFeatures: const [FontFeature.tabularFigures()],
