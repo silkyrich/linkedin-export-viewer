@@ -148,14 +148,19 @@ const _historicalFirst = [
   'Dorothy', 'Elizabeth',
 ];
 
+// Note: we intentionally exclude the surnames of the 10 crafted personas
+// (Babbage, Somerville, Faraday, Nightingale, De Morgan, Herschel, Whewell,
+// Dickens, Shelley, Byron, Lovelace) so a random synthetic contact can't
+// collide with them. Before this, "Marie Shelley" would show up in
+// Most-messaged and look like our crafted Mary Shelley.
 const _historicalLast = [
-  'Lovelace', 'Hopper', 'Turing', 'Franklin', 'Johnson', 'Vaughan',
-  'Jackson', 'Babbage', 'Kovalevskaya', 'Lamarr', 'Shannon', 'Ritchie',
+  'Hopper', 'Turing', 'Franklin', 'Johnson', 'Vaughan',
+  'Jackson', 'Kovalevskaya', 'Lamarr', 'Shannon', 'Ritchie',
   'Dijkstra', 'Knuth', 'Curie', 'Tesla', 'Fermi', 'Liskov', 'Carson',
   'Goodall', 'Perkins', 'Noether', 'Mirzakhani', 'Devi', 'of Alexandria',
   'Ramanujan', 'von Neumann', 'Hamilton', 'Perlman', 'Boyd', 'Cannon',
-  'Leavitt', 'Meitner', 'Wu', 'Rubin', 'Bell Burnell', 'Noether',
-  'Byron', 'Shelley', 'Blackwell', 'Blackburn',
+  'Leavitt', 'Meitner', 'Wu', 'Rubin', 'Bell Burnell',
+  'Blackwell', 'Blackburn',
 ];
 
 const _fictionalFirst = [
@@ -183,7 +188,8 @@ const _madeUpFirst = [
 const _madeUpLast = [
   'Fenwick', 'Quibble', 'Moonglow', 'Hollow', 'Pembrook', 'Ashford',
   'Winterbourne', 'Bramble', 'Thornwood', 'Ravensong', 'Harbinger',
-  'Nightingale', 'Summerfield', 'Brookworth',
+  'Summerfield', 'Brookworth',
+  // 'Nightingale' was here but collided with our crafted persona.
 ];
 
 List<String> get _firstNames => [..._historicalFirst, ..._fictionalFirst, ..._madeUpFirst];
@@ -715,12 +721,30 @@ void _writeMessages(List<_Contact> contacts, _Me me, Random rng) {
   }
 
   // Filler conversations with random contacts for scale.
+  //
+  // Weight the random participant picker heavily toward the 10 crafted
+  // personas (Babbage, Somerville, Faraday, …) so they dominate the
+  // Most-Messaged charts and are easy to find in the Messages list.
+  // Without this, the 2,000 random filler contacts each get ~10 messages
+  // and the personas get only their 3–5 scripted ones, so the demo
+  // appears to be "you, messaging strangers" instead of showcasing
+  // the hand-written cast.
+  final personaContacts =
+      contacts.take(p.personas.where((x) => !x.invitationOnly).length).toList();
+  _Contact pickWeighted() {
+    // 75% of the time pick a persona; 25% random filler.
+    if (personaContacts.isNotEmpty && rng.nextInt(100) < 75) {
+      return personaContacts[rng.nextInt(personaContacts.length)];
+    }
+    return contacts[rng.nextInt(contacts.length)];
+  }
+
   while (rows.length < _targetMessages) {
     conversationIndex++;
     final participantCount = rng.nextInt(100) < 85 ? 1 : (2 + rng.nextInt(3)); // mostly 1:1, some group
     final participants = List.generate(
       participantCount,
-      (_) => contacts[rng.nextInt(contacts.length)],
+      (_) => pickWeighted(),
     );
     // Length distribution: power law, heavy right tail
     final lengthRoll = rng.nextDouble();
