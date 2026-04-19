@@ -74,7 +74,7 @@ extension _EngagementKindMeta on _EngagementKind {
       };
 
   String get label => switch (this) {
-        _EngagementKind.reaction => 'Reaction',
+        _EngagementKind.reaction => 'Like',
         _EngagementKind.share => 'Share',
         _EngagementKind.comment => 'Comment',
         _EngagementKind.vote => 'Poll vote',
@@ -311,9 +311,16 @@ class _EngagementTile extends StatelessWidget {
     final dateText = row.date == null
         ? ''
         : '${row.date!.year}-${row.date!.month.toString().padLeft(2, '0')}-${row.date!.day.toString().padLeft(2, '0')}';
+    // Reactions live in [title] (Celebrate / Support / …); everything else
+    // lives in [body]. Avoid "Like — Like" for a plain like.
+    final displayTitle = row.kind == _EngagementKind.reaction
+        ? (row.title.isEmpty ? row.kind.label : row.title)
+        : (row.body.isEmpty
+            ? '${row.kind.label}${row.title.isEmpty ? '' : ' — ${row.title}'}'
+            : row.body);
     final subtitleParts = <String>[
       row.kind.label,
-      if (row.title.isNotEmpty) row.title,
+      if (row.title.isNotEmpty && row.title != row.kind.label) row.title,
       if (dateText.isNotEmpty) dateText,
     ];
     return ListTile(
@@ -323,9 +330,7 @@ class _EngagementTile extends StatelessWidget {
         child: Icon(row.kind.icon, size: 18),
       ),
       title: Text(
-        row.body.isEmpty
-            ? '${row.kind.label}${row.title.isEmpty ? '' : ' — ${row.title}'}'
-            : row.body,
+        displayTitle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),

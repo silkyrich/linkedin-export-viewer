@@ -108,6 +108,24 @@ class InsightsScreen extends ConsumerWidget {
                 icon: Icons.ads_click,
                 hint: 'LinkedIn uses these to target you',
               ),
+              if (data.likesCount > 0)
+                StatTile(
+                  label: 'Likes given',
+                  value: fmt.format(data.likesCount),
+                  icon: Icons.favorite_border,
+                ),
+              if (data.commentsCount > 0)
+                StatTile(
+                  label: 'Comments made',
+                  value: fmt.format(data.commentsCount),
+                  icon: Icons.chat_bubble_outline,
+                ),
+              if (data.sharesCount > 0)
+                StatTile(
+                  label: 'Shares',
+                  value: fmt.format(data.sharesCount),
+                  icon: Icons.share_outlined,
+                ),
             ],
           ),
         ),
@@ -273,6 +291,9 @@ class _InsightsData {
     required this.longestTitle,
     required this.longestCompany,
     required this.topSkill,
+    required this.likesCount,
+    required this.commentsCount,
+    required this.sharesCount,
   });
   final int connectionCount;
   final int messageCount;
@@ -292,6 +313,9 @@ class _InsightsData {
   final String longestTitle;
   final String longestCompany;
   final (String, int)? topSkill;
+  final int likesCount;
+  final int commentsCount;
+  final int sharesCount;
 }
 
 _InsightsData _compute(LinkedInArchive archive, FlowIndex? flow) {
@@ -423,6 +447,10 @@ _InsightsData _compute(LinkedInArchive archive, FlowIndex? flow) {
           ? (flow.maxDate.difference(flow.minDate).inDays / 365).round()
           : null;
 
+  final likesCount = archive.file('Reactions.csv')?.rows.length ?? 0;
+  final commentsCount = archive.file('Comments.csv')?.rows.length ?? 0;
+  final sharesCount = archive.file('Shares.csv')?.rows.length ?? 0;
+
   return _InsightsData(
     connectionCount: archive.connectionCount,
     messageCount: archive.messageCount,
@@ -445,6 +473,9 @@ _InsightsData _compute(LinkedInArchive archive, FlowIndex? flow) {
     longestTitle: longestTitle,
     longestCompany: longestCompany,
     topSkill: topSkill,
+    likesCount: likesCount,
+    commentsCount: commentsCount,
+    sharesCount: sharesCount,
   );
 }
 
