@@ -19,6 +19,8 @@ import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
 import 'package:csv/csv.dart';
 
+import 'personas.dart' as p;
+
 const _fixturesDir = 'fixtures/sample_export';
 const _zipPath = 'fixtures/sample_export.zip';
 
@@ -46,7 +48,27 @@ void main(List<String> args) {
   stdout.writeln('Generating synthetic LinkedIn export at $_fixturesDir/...');
 
   final me = _Me.generate(rng);
-  final contacts = List.generate(_connectionsCount + 50, (i) => _Contact.generate(rng, i));
+  // Crafted personas go at the front of the contact list so they own the
+  // top of Connections and feature heavily in the scripted threads and
+  // recommendations. Filler synthetic contacts follow.
+  final personas = [
+    for (final persona in p.personas.where((x) => !x.invitationOnly))
+      _Contact(
+        firstName: persona.first,
+        lastName: persona.last,
+        email: '${_slugify(persona.first)}.${_slugify(persona.last)}@example.com',
+        company: persona.company,
+        position: persona.position,
+        slug: persona.slug,
+        connectedOn: _parseDateLinkedin(persona.connectedOn),
+      ),
+  ];
+  final fillerCount = _connectionsCount - personas.length;
+  final filler = List.generate(
+    fillerCount + 50,
+    (i) => _Contact.generate(rng, i + personas.length),
+  );
+  final contacts = [...personas, ...filler];
   final skills = _skillPool.toList()..shuffle(rng);
 
   // Identity
@@ -163,25 +185,32 @@ List<String> get _firstNames => [..._historicalFirst, ..._fictionalFirst, ..._ma
 List<String> get _lastNames => [..._historicalLast, ..._fictionalLast, ..._madeUpLast];
 
 const _companies = [
-  'Cyberdyne Systems', 'Initech', 'Weyland-Yutani', 'Dunder Mifflin',
-  'Acme Corporation', 'Globex Corporation', 'Soylent Corp', 'Tyrell Corporation',
-  'Hooli', 'Pied Piper', 'Bluth Company', 'Sterling Cooper', 'Sirius Cybernetics',
-  'Cogswell Cogs', 'Vandelay Industries', 'Mom Corp', 'Planet Express',
-  'Stark Industries', 'Wayne Enterprises', 'Umbrella Corporation',
-  'Oscorp', 'LexCorp', 'Black Mesa', 'Aperture Science',
-  'Massive Dynamic', 'Umbraco Corp', 'Gringotts Wizarding Bank',
-  'Wonka Industries', 'Los Pollos Hermanos', 'Krusty Krab',
-  'Pearson Specter Litt', 'Paper Street Soap Co.',
+  'Royal Society', 'Royal Institution', 'Royal Astronomical Society',
+  'Royal Geographical Society', 'British Association for the Advancement of Science',
+  'Linnean Society', 'Geological Society of London',
+  'Trinity College, Cambridge', 'King\'s College London',
+  'University College London', 'University of Edinburgh',
+  'Royal Greenwich Observatory', 'Admiralty',
+  'Her Majesty\'s Treasury', 'General Post Office',
+  'Analytical Engines (stealth)', 'Difference Engine Company',
+  'Household Words', 'Punch Magazine',
+  'Mechanics\' Institute', 'Board of Longitude',
+  'Great Western Railway', 'London and Birmingham Railway',
+  'East India Company', 'British Museum',
 ];
 
+// Modern corporate titles draped onto Victorian networking — the
+// anachronism is the joke.
 const _titles = [
-  'Software Engineer', 'Senior Software Engineer', 'Staff Engineer',
-  'Engineering Manager', 'Principal Engineer', 'Product Manager',
-  'Senior Product Manager', 'Director of Engineering', 'VP Engineering',
-  'Chief Technology Officer', 'Developer Advocate', 'Site Reliability Engineer',
-  'Data Scientist', 'Machine Learning Engineer', 'Backend Engineer',
-  'Frontend Engineer', 'Full Stack Engineer', 'DevOps Engineer',
-  'Tech Lead', 'Solutions Architect',
+  'Fellow', 'Senior Fellow', 'Principal Investigator',
+  'Head of Correspondence', 'Master of the Mint',
+  'Director of Natural Philosophy', 'Chief Experimental Officer',
+  'Senior Lecturer', 'Lecturer (Tenure Track)', 'Reader',
+  'Editor', 'Senior Editor', 'Publisher',
+  'Astronomer Royal, Deputy', 'Curator',
+  'Civil Engineer', 'Surveyor', 'Mill Owner',
+  'Partner', 'Founding Partner',
+  'Secretary, Royal Society', 'Honorary Secretary',
 ];
 
 const _skillPool = [
@@ -200,30 +229,33 @@ const _skillPool = [
   'Type Theory', 'Functional Programming', 'Reactive Programming',
 ];
 
+// Dead-pan corporate LinkedIn register translated into the mid-Victorian
+// correspondence idiom. Each line should read like a LinkedIn DM that
+// happens to be written with a quill.
 const _messageOpenings = [
-  'Hey, just wanted to follow up on our conversation at',
-  'Hi there — hope you are doing well.',
-  'Thanks for connecting! I noticed you work at',
-  'Nice to meet you at',
-  'Quick question about the',
-  'Hope you had a good weekend.',
-  'Saw your post about',
-  'Loved your talk at',
-  'Would you be open to',
-  'Following up re:',
+  'Following up on our conversation at the Royal Institution —',
+  'Hope your week at the Observatory went well.',
+  'Thanks for the kind reception at Lady Byron\'s salon.',
+  'Circling back regarding the society meeting on Tuesday.',
+  'Re: the attached monograph —',
+  'Quick question on the Bernoulli sequence —',
+  'Saw your paper in the Transactions.',
+  'Loved your lecture at the Mechanics\' Institute.',
+  'Would you be open to a brief correspondence on',
+  'Re: the Committee\'s resolution —',
 ];
 
 const _messageBodies = [
-  'The team is shipping a new feature next quarter and I think your background would be a great fit.',
-  'I am working on something related and would love to compare notes.',
-  'Are you around for a quick 15-minute call this week?',
-  'No rush — just flagging in case it is relevant.',
-  'Happy to make an intro if it would help.',
-  'We have an opening that might be interesting.',
-  'Thanks again for the thoughtful feedback earlier.',
-  'Sharing this in case it is useful.',
-  'Let me know what works on your end.',
-  'Looking forward to hearing from you.',
+  'The Society is convening a special panel next quarter; your background would fit well.',
+  'I am working on something related and would value a comparison of notes.',
+  'Are you free for a brief meeting at the Institution this week?',
+  'No urgency — flagging in case it is relevant to your current work.',
+  'Happy to forward a letter of introduction if it would help.',
+  'A Fellowship is opening that may be of interest.',
+  'Thank you again for the thoughtful feedback on the draft.',
+  'Sharing the enclosed in case it is useful to your enquiries.',
+  'Please let me know a day and hour that would suit.',
+  'I look forward to your response at your earliest convenience.',
 ];
 
 // ---------------------------------------------------------------------------
@@ -262,20 +294,18 @@ class _Me {
 
   static _Me generate(Random rng) {
     return _Me(
-      firstName: 'Ada',
-      lastName: 'Byron-Example',
-      headline: 'Staff Engineer at Cyberdyne Systems | Distributed Systems, Flutter, Developer Experience',
-      summary: 'Obviously-synthetic profile generated from a seeded fixture. '
-          'I build developer tools and distributed systems. Previously at Initech, '
-          'Hooli, and the Paper Street Soap Co. Opinions are my own and also fake.',
-      industry: 'Computer Software',
+      firstName: p.meFirstName,
+      lastName: p.meLastName,
+      headline: p.meHeadline,
+      summary: p.meSummary,
+      industry: 'Mathematics and Computation',
       zip: 'EX1 2MP',
       geo: 'London, England, United Kingdom',
       email: 'ada.example@example.com',
       phone: '+44 20 5550 0100',
-      registeredAt: DateTime.utc(2009, 3, 14, 9, 41, 53),
+      registeredAt: DateTime.utc(1833, 6, 5, 14, 0, 0),
       registrationIp: '203.0.113.42',
-      slug: 'fake-ada-byron-example',
+      slug: p.meSlug,
     );
   }
 }
@@ -308,7 +338,7 @@ class _Contact {
     final slug = 'fake-${_slugify(first)}-${_slugify(last)}-$index';
     final company = _companies[rng.nextInt(_companies.length)];
     final title = _titles[rng.nextInt(_titles.length)];
-    final year = 2015 + rng.nextInt(11); // 2015..2025
+    final year = 1833 + rng.nextInt(20); // 1833..1852 — contemporary with Ada
     final month = 1 + rng.nextInt(12);
     final day = 1 + rng.nextInt(28);
     return _Contact(
@@ -349,8 +379,28 @@ String _linkedinDate(DateTime d) {
   return '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
 }
 
+/// Parse the LinkedIn `dd MMM yyyy` date format back into a DateTime.
+DateTime _parseDateLinkedin(String s) {
+  const months = {
+    'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+    'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+  };
+  final parts = s.trim().split(' ');
+  if (parts.length != 3) return DateTime.utc(2000);
+  final day = int.tryParse(parts[0]) ?? 1;
+  final month = months[parts[1]] ?? 1;
+  final year = int.tryParse(parts[2]) ?? 2000;
+  return DateTime.utc(year, month, day);
+}
+
 String _utcTimestamp(DateTime d) =>
     '${_isoDate(d)} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}:${d.second.toString().padLeft(2, '0')} UTC';
+
+/// Parse `YYYY-MM-DD HH:MM` from scripted persona message dates.
+DateTime _parseScriptedDate(String s) {
+  final d = DateTime.tryParse(s.replaceFirst(' ', 'T'));
+  return d?.toUtc() ?? DateTime.utc(1840);
+}
 
 // ---------------------------------------------------------------------------
 // Identity writers
@@ -462,14 +512,24 @@ void _writeConnections(List<_Contact> contacts) {
 
 void _writeRecommendationsGiven(List<_Contact> contacts, Random rng) {
   final rows = <List<Object?>>[];
-  for (var i = 0; i < 24; i++) {
+  // Scripted recs written by Ada first.
+  for (final persona in p.personas) {
+    if (persona.recommendationToThem == null) continue;
+    rows.add([
+      persona.first, persona.last, persona.company, persona.position,
+      persona.recommendationToThem,
+      _linkedinDate(_parseDateLinkedin(persona.connectedOn.isEmpty ? '01 Jan 1840' : persona.connectedOn)),
+      'VISIBLE',
+    ]);
+  }
+  // Filler to pad the count.
+  for (var i = 0; i < 20; i++) {
     final c = contacts[rng.nextInt(contacts.length)];
     rows.add([
       c.firstName, c.lastName, c.company, c.position,
-      'I worked with ${c.firstName} on a synthetic project at ${c.company}. '
-          'They consistently delivered high-quality work and would be a great '
-          'addition to any team.',
-      _linkedinDate(DateTime.utc(2018 + rng.nextInt(8), 1 + rng.nextInt(12), 1 + rng.nextInt(28))),
+      'Worked with ${c.firstName} on a project of mutual interest. '
+          'Consistently delivered strong work. Recommended.',
+      _linkedinDate(DateTime.utc(1838 + rng.nextInt(14), 1 + rng.nextInt(12), 1 + rng.nextInt(28))),
       'VISIBLE',
     ]);
   }
@@ -482,13 +542,23 @@ void _writeRecommendationsGiven(List<_Contact> contacts, Random rng) {
 
 void _writeRecommendationsReceived(List<_Contact> contacts, Random rng) {
   final rows = <List<Object?>>[];
-  for (var i = 0; i < 31; i++) {
+  // Scripted recs written about Ada first.
+  for (final persona in p.personas) {
+    if (persona.recommendationFromThem == null) continue;
+    rows.add([
+      persona.first, persona.last, persona.company, persona.position,
+      persona.recommendationFromThem,
+      _linkedinDate(_parseDateLinkedin(persona.connectedOn.isEmpty ? '01 Jan 1843' : persona.connectedOn)),
+      'VISIBLE',
+    ]);
+  }
+  for (var i = 0; i < 24; i++) {
     final c = contacts[rng.nextInt(contacts.length)];
     rows.add([
       c.firstName, c.lastName, c.company, c.position,
-      '${c.firstName} was one of the sharpest engineers I worked with. Technical '
-          'depth, kindness, and a knack for cutting through ambiguity.',
-      _linkedinDate(DateTime.utc(2017 + rng.nextInt(9), 1 + rng.nextInt(12), 1 + rng.nextInt(28))),
+      '${c.firstName} is the rare correspondent who actually reads the '
+          'attachment before replying. Highly recommended.',
+      _linkedinDate(DateTime.utc(1838 + rng.nextInt(14), 1 + rng.nextInt(12), 1 + rng.nextInt(28))),
       'VISIBLE',
     ]);
   }
@@ -501,11 +571,21 @@ void _writeRecommendationsReceived(List<_Contact> contacts, Random rng) {
 
 void _writeEndorsementsGiven(List<_Contact> contacts, List<String> skills, Random rng, int count) {
   final rows = <List<Object?>>[];
-  for (var i = 0; i < count; i++) {
+  // Scripted endorsements Ada gave out.
+  for (final persona in p.personas) {
+    for (final skill in persona.endorsementsToThem) {
+      rows.add([
+        _linkedinDate(_parseDateLinkedin(persona.connectedOn.isEmpty ? '01 Feb 1841' : persona.connectedOn)),
+        skill,
+        persona.first, persona.last, persona.profileUrl, 'ACCEPTED',
+      ]);
+    }
+  }
+  for (var i = rows.length; i < count; i++) {
     final c = contacts[rng.nextInt(contacts.length)];
     final skill = skills[rng.nextInt(skills.length)];
     rows.add([
-      _linkedinDate(DateTime.utc(2016 + rng.nextInt(10), 1 + rng.nextInt(12), 1 + rng.nextInt(28))),
+      _linkedinDate(DateTime.utc(1838 + rng.nextInt(14), 1 + rng.nextInt(12), 1 + rng.nextInt(28))),
       skill,
       c.firstName, c.lastName, c.profileUrl, 'ACCEPTED',
     ]);
@@ -523,11 +603,21 @@ void _writeEndorsementsGiven(List<_Contact> contacts, List<String> skills, Rando
 
 void _writeEndorsementsReceived(List<_Contact> contacts, List<String> skills, Random rng, int count) {
   final rows = <List<Object?>>[];
-  for (var i = 0; i < count; i++) {
+  // Scripted endorsements Ada received.
+  for (final persona in p.personas) {
+    for (final skill in persona.endorsementsFromThem) {
+      rows.add([
+        _linkedinDate(_parseDateLinkedin(persona.connectedOn.isEmpty ? '01 Feb 1841' : persona.connectedOn)),
+        skill,
+        persona.first, persona.last, persona.profileUrl, 'ACCEPTED',
+      ]);
+    }
+  }
+  for (var i = rows.length; i < count; i++) {
     final c = contacts[rng.nextInt(contacts.length)];
     final skill = skills[rng.nextInt(skills.length)];
     rows.add([
-      _linkedinDate(DateTime.utc(2016 + rng.nextInt(10), 1 + rng.nextInt(12), 1 + rng.nextInt(28))),
+      _linkedinDate(DateTime.utc(1838 + rng.nextInt(14), 1 + rng.nextInt(12), 1 + rng.nextInt(28))),
       skill,
       c.firstName, c.lastName, c.profileUrl, 'ACCEPTED',
     ]);
@@ -545,16 +635,34 @@ void _writeEndorsementsReceived(List<_Contact> contacts, List<String> skills, Ra
 
 void _writeInvitations(List<_Contact> contacts, _Me me, Random rng) {
   final rows = <List<Object?>>[];
-  for (var i = 0; i < 162; i++) {
+  // Scripted pending-forever invitations (Byron, etc.) first.
+  for (final persona in p.personas.where((x) => x.invitationOnly)) {
+    final outgoing = persona.invitationDirection == 'OUTGOING';
+    rows.add([
+      outgoing ? '${me.firstName} ${me.lastName}' : persona.fullName,
+      outgoing ? persona.fullName : '${me.firstName} ${me.lastName}',
+      _utcTimestamp(DateTime.utc(1823, 7, 18, 11, 0)),
+      outgoing
+          ? 'Father — I understand Mother has reluctantly permitted me to '
+              'write. I would very much like to make your acquaintance. '
+              'Ada.'
+          : '',
+      persona.invitationDirection,
+      outgoing ? me.profileUrl : persona.profileUrl,
+      outgoing ? persona.profileUrl : me.profileUrl,
+    ]);
+  }
+  for (var i = rows.length; i < 162; i++) {
     final c = contacts[rng.nextInt(contacts.length)];
     final outgoing = rng.nextBool();
-    final sentAt = _utcTimestamp(DateTime.utc(2019 + rng.nextInt(7), 1 + rng.nextInt(12), 1 + rng.nextInt(28), rng.nextInt(24), rng.nextInt(60), rng.nextInt(60)));
+    final sentAt = _utcTimestamp(DateTime.utc(1833 + rng.nextInt(19), 1 + rng.nextInt(12), 1 + rng.nextInt(28), rng.nextInt(24), rng.nextInt(60), rng.nextInt(60)));
     rows.add([
       outgoing ? '${me.firstName} ${me.lastName}' : c.fullName,
       outgoing ? c.fullName : '${me.firstName} ${me.lastName}',
       sentAt,
       rng.nextBool()
-          ? 'Hi, I came across your profile and would like to connect.'
+          ? 'We met at the Royal Institution lecture. Would you be open to '
+              'connecting?'
           : '',
       outgoing ? 'OUTGOING' : 'INCOMING',
       outgoing ? me.profileUrl : c.profileUrl,
@@ -572,9 +680,36 @@ void _writeInvitations(List<_Contact> contacts, _Me me, Random rng) {
 // Messages
 
 void _writeMessages(List<_Contact> contacts, _Me me, Random rng) {
-  // Generate conversations until we hit the target message count.
   final rows = <List<Object?>>[];
   var conversationIndex = 0;
+
+  // Scripted threads with personas first — these are the ones users will
+  // encounter at the top of the Messages list when they open the demo.
+  for (final persona in p.personas) {
+    if (persona.thread.isEmpty) continue;
+    conversationIndex++;
+    final convId = 'conv-${conversationIndex.toString().padLeft(6, '0')}';
+    for (final sm in persona.thread) {
+      final fromName = sm.fromAda ? '${me.firstName} ${me.lastName}' : persona.fullName;
+      final fromUrl = sm.fromAda ? me.profileUrl : persona.profileUrl;
+      final toName = sm.fromAda ? persona.fullName : '${me.firstName} ${me.lastName}';
+      final toUrl = sm.fromAda ? persona.profileUrl : me.profileUrl;
+      rows.add([
+        convId,
+        persona.threadTitle ?? '',
+        fromName, fromUrl,
+        toName, toUrl,
+        _utcTimestamp(_parseScriptedDate(sm.date)),
+        sm.subject,
+        sm.content,
+        'INBOX',
+        '',
+        sm.isDraft ? 'true' : 'false',
+      ]);
+    }
+  }
+
+  // Filler conversations with random contacts for scale.
   while (rows.length < _targetMessages) {
     conversationIndex++;
     final participantCount = rng.nextInt(100) < 85 ? 1 : (2 + rng.nextInt(3)); // mostly 1:1, some group
@@ -593,7 +728,7 @@ void _writeMessages(List<_Contact> contacts, _Me me, Random rng) {
     final title = participantCount == 1
         ? ''
         : participants.map((p) => p.fullName).join(', ');
-    var cursor = DateTime.utc(2019 + rng.nextInt(6), 1 + rng.nextInt(12), 1 + rng.nextInt(28), rng.nextInt(24), rng.nextInt(60));
+    var cursor = DateTime.utc(1833 + rng.nextInt(19), 1 + rng.nextInt(12), 1 + rng.nextInt(28), rng.nextInt(24), rng.nextInt(60));
     for (var i = 0; i < convoLen && rows.length < _targetMessages; i++) {
       final fromMe = rng.nextBool();
       final author = fromMe ? null : participants[rng.nextInt(participants.length)];

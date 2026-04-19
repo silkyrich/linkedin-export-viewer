@@ -1,10 +1,10 @@
 Event Name,Event Time,Status,External Url
-Fictional Flutter Summit 2024,2025-03-10 11:00:00 UTC,ATTENDING,https://example.com/events/fictional-flutter-summit-2024
-Synthetic Rust Conf 2023,2023-03-20 16:00:00 UTC,INTERESTED,https://example.com/events/synthetic-rust-conf-2023
-Example.com Dev Day 2025,2024-02-18 16:00:00 UTC,INTERESTED,https://example.com/events/example-com-dev-day-2025
-Pretend GraphQL Summit,2023-12-10 11:00:00 UTC,INTERESTED,https://example.com/events/pretend-graphql-summit
-Faux Kubernetes Con,2025-09-10 12:00:00 UTC,INTERESTED,https://example.com/events/faux-kubernetes-con
-Imaginary Dart Meetup,2023-03-09 12:00:00 UTC,INTERESTED,https://example.com/events/imaginary-dart-meetup
-Nonexistent AI Workshop,2023-10-11 09:00:00 UTC,ATTENDING,https://example.com/events/nonexistent-ai-workshop
-Placeholder Product Summit,2023-07-18 13:00:00 UTC,INTERESTED,https://example.com/events/placeholder-product-summit
-Stand-in Leadership Forum,2023-10-02 13:00:00 UTC,ATTENDING,https://example.com/events/stand-in-leadership-forum
+Fictional Flutter Summit 2024,2023-02-12 12:00:00 UTC,INTERESTED,https://example.com/events/fictional-flutter-summit-2024
+Synthetic Rust Conf 2023,2025-05-01 14:00:00 UTC,INTERESTED,https://example.com/events/synthetic-rust-conf-2023
+Example.com Dev Day 2025,2023-10-08 16:00:00 UTC,ATTENDING,https://example.com/events/example-com-dev-day-2025
+Pretend GraphQL Summit,2023-10-11 12:00:00 UTC,INTERESTED,https://example.com/events/pretend-graphql-summit
+Faux Kubernetes Con,2025-04-12 15:00:00 UTC,INTERESTED,https://example.com/events/faux-kubernetes-con
+Imaginary Dart Meetup,2023-06-10 13:00:00 UTC,INTERESTED,https://example.com/events/imaginary-dart-meetup
+Nonexistent AI Workshop,2025-02-22 13:00:00 UTC,INTERESTED,https://example.com/events/nonexistent-ai-workshop
+Placeholder Product Summit,2025-08-18 16:00:00 UTC,ATTENDING,https://example.com/events/placeholder-product-summit
+Stand-in Leadership Forum,2024-11-17 14:00:00 UTC,INTERESTED,https://example.com/events/stand-in-leadership-forum
