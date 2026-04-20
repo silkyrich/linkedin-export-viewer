@@ -37,6 +37,25 @@ jobs:
             --pwa-strategy=none
           touch build/web/.nojekyll
 
+      # Cache-bust. Append ?v=<git-sha> to main.dart.js in flutter_bootstrap.js
+      # so returning visitors pick up the latest code instead of a cached
+      # copy from a previous deploy. Also add a no-cache meta to index.html
+      # so the HTML itself always revalidates.
+      - name: Cache-bust web assets
+        run: |
+          SHA=${GITHUB_SHA:0:8}
+          echo "Cache-busting with version $SHA"
+          sed -i \
+            "s|\"mainJsPath\":\"main.dart.js\"|\"mainJsPath\":\"main.dart.js?v=$SHA\"|" \
+            build/web/flutter_bootstrap.js
+          sed -i \
+            "s|<meta charset=\"UTF-8\">|<meta charset=\"UTF-8\">\n  <meta http-equiv=\"Cache-Control\" content=\"no-cache, no-store, must-revalidate\">\n  <meta http-equiv=\"Pragma\" content=\"no-cache\">\n  <meta http-equiv=\"Expires\" content=\"0\">\n  <meta name=\"x-linkedout-version\" content=\"$SHA\">|" \
+            build/web/index.html
+          echo "--- flutter_bootstrap.js mainJsPath ---"
+          grep -o "mainJsPath[^,}]*" build/web/flutter_bootstrap.js || true
+          echo "--- index.html version meta ---"
+          grep -o "x-linkedout-version[^>]*" build/web/index.html || true
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
