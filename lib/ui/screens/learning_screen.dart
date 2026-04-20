@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/linkedin_links.dart';
 import '../../models/archive.dart';
@@ -132,32 +133,153 @@ class _CoursesTab extends StatelessWidget {
   }
 }
 
-class _ArticlesTab extends StatelessWidget {
+class _ArticlesTab extends StatefulWidget {
   const _ArticlesTab({required this.archive});
   final LinkedInArchive archive;
 
   @override
+  State<_ArticlesTab> createState() => _ArticlesTabState();
+}
+
+class _ArticlesTabState extends State<_ArticlesTab> {
+  String _query = '';
+
+  @override
   Widget build(BuildContext context) {
-    final articles = archive.files.entries
-        .where((e) => e.key.startsWith('Articles/') && e.key.toLowerCase().endsWith('.html'))
-        .toList()
-      ..sort((a, b) => b.key.compareTo(a.key));
-    if (articles.isEmpty) {
+    final all = widget.archive.files.entries
+        .where((e) =>
+            e.key.startsWith('Articles/') &&
+            e.key.toLowerCase().endsWith('.html'))
+        .map((e) {
+      final filename = e.key.split('/').last;
+      return _Article(
+        path: e.key,
+        filename: filename,
+        title: _titleFromFilename(filename),
+        date: _dateFromFilename(filename),
+        sizeBytes: e.value.rawBytes?.length ?? 0,
+        file: e.value,
+      );
+    }).toList()
+      ..sort((a, b) =>
+          (b.date ?? DateTime(0)).compareTo(a.date ?? DateTime(0)));
+
+    if (all.isEmpty) {
       return const Center(child: Text('No published articles.'));
     }
-    return ListView.builder(
-      itemCount: articles.length,
-      itemBuilder: (ctx, i) {
-        final entry = articles[i];
-        final filename = entry.key.split('/').last;
-        return ListTile(
-          leading: const Icon(Icons.article_outlined),
-          title: Text(filename),
-          onTap: () => _openArticle(ctx, entry.value),
-        );
-      },
+
+    final q = _query.toLowerCase();
+    final filtered = q.isEmpty
+        ? all
+        : all
+            .where((a) =>
+                a.filename.toLowerCase().contains(q) ||
+                a.title.toLowerCase().contains(q))
+            .toList();
+
+    final totalBytes = all.fold<int>(0, (s, a) => s + a.sizeBytes);
+
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: TextField(
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Search articles',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: (v) => setState(() => _query = v.trim()),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              q.isEmpty
+                  ? '${all.length} articles · ${_humanSize(totalBytes)} total'
+                  : '${filtered.length} of ${all.length} articles',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ),
+        Expanded(
+          // ListView.builder already virtualizes — only the visible rows
+          // materialize, so 500+ articles stay responsive. Each article's
+          // HTML body is only decoded when you open it, not on scroll.
+          child: ListView.builder(
+            itemCount: filtered.length,
+            itemBuilder: (ctx, i) {
+              final a = filtered[i];
+              final subtitleParts = <String>[
+                if (a.date != null) DateFormat.yMMMd().format(a.date!),
+                _humanSize(a.sizeBytes),
+              ];
+              return ListTile(
+                leading: const Icon(Icons.article_outlined),
+                title: Text(a.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  subtitleParts.join(' · '),
+                  style: theme.textTheme.labelSmall,
+                ),
+                onTap: () => _openArticle(ctx, a.file),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
+}
+
+class _Article {
+  _Article({
+    required this.path,
+    required this.filename,
+    required this.title,
+    required this.date,
+    required this.sizeBytes,
+    required this.file,
+  });
+  final String path;
+  final String filename;
+  final String title;
+  final DateTime? date;
+  final int sizeBytes;
+  final ParsedFile file;
+}
+
+/// LinkedIn articles are exported with filenames like
+/// "2024-05-18_flutter-web-renderer-tradeoffs.html". Parse both pieces.
+DateTime? _dateFromFilename(String filename) {
+  final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(filename);
+  if (m == null) return null;
+  return DateTime.utc(
+    int.parse(m.group(1)!),
+    int.parse(m.group(2)!),
+    int.parse(m.group(3)!),
+  );
+}
+
+String _titleFromFilename(String filename) {
+  // Strip date prefix + .html suffix, convert dashes to spaces, Title Case.
+  var s = filename;
+  final dateMatch = RegExp(r'^\d{4}-\d{2}-\d{2}[_-]').firstMatch(s);
+  if (dateMatch != null) s = s.substring(dateMatch.end);
+  s = s.replaceAll(RegExp(r'\.html$', caseSensitive: false), '');
+  s = s.replaceAll(RegExp('[-_]+'), ' ').trim();
+  if (s.isEmpty) return filename;
+  // Sentence-case: upper first letter.
+  return s[0].toUpperCase() + s.substring(1);
+}
+
+String _humanSize(int bytes) {
+  if (bytes < 1024) return '${bytes}B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
 }
 
 void _openArticle(BuildContext context, ParsedFile file) {
