@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../state/archive_controller.dart';
 import '../../state/theme_controller.dart';
+import '../widgets/linkedout_logo.dart';
 
 /// Visible reassurance that nothing leaves the browser — but a light one.
 ///
@@ -31,12 +32,21 @@ class PrivacyBanner extends ConsumerWidget {
         builder: (context, constraints) {
           final tight = constraints.maxWidth < 500;
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Row(
               children: [
+                const SizedBox(width: 4),
+                InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () => context.go('/about'),
+                  child: const Padding(
+                    padding: EdgeInsets.all(2),
+                    child: LinkedOutLogo(size: 24),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Icon(Icons.lock_outline, size: 14, color: onBg),
                 const SizedBox(width: 6),
-                Icon(Icons.lock_outline, size: 16, color: onBg),
-                const SizedBox(width: 8),
                 if (!tight)
                   Expanded(
                     child: Text(

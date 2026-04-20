@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../state/archive_controller.dart';
+import '../widgets/linkedout_logo.dart';
 import 'privacy_banner.dart';
 
 class ShellDestination {
@@ -186,6 +187,17 @@ class _DesktopShell extends StatelessWidget {
                   extended: extended,
                   selectedIndex: selected,
                   onDestinationSelected: (i) => context.go(destinations[i].route),
+                  leading: Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => context.go('/about'),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: LinkedOutLogo(size: 32),
+                      ),
+                    ),
+                  ),
                   destinations: [
                     for (final d in destinations)
                       NavigationRailDestination(

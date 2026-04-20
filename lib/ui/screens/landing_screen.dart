@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../state/archive_controller.dart';
 import '../shell/dropzone_stub.dart'
     if (dart.library.js_interop) '../shell/dropzone_web.dart';
+import '../widgets/linkedout_logo.dart';
 
 /// First screen a visitor sees. Offers two entry points:
 ///   1. Upload your own LinkedIn export zip.
@@ -53,18 +54,8 @@ class LandingScreen extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: cs.primary,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Icon(
-                          Icons.hub,
-                          size: 40,
-                          color: cs.onPrimary,
-                        ),
-                      ).asCenter(),
+                      const LinkedOutLogo(size: 96, showExclamation: true)
+                          .asCenter(),
                       const SizedBox(height: 24),
                       Text(
                         'LinkedOut!',

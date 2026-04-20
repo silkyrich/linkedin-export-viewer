@@ -1,61 +1,80 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../state/flow_index.dart';
+import '../../state/activity_index.dart';
 
-/// GitHub-style activity grid: one cell per day, rows = days of the week,
-/// columns = weeks. Color intensity scales with log(message count + 1).
+/// GitHub-style activity grid — but broader than messages. Now aggregates
+/// every dated thing in the archive (messages + likes + comments + shares +
+/// applications + endorsements + invitations) and supports multiple
+/// time granularities.
 ///
-/// Hover a cell to see the date + exact count. Tap a cell to pin the
-/// tooltip (useful on touch devices). Tap outside or on the pinned cell
-/// again to dismiss.
+/// Hover any cell for a breakdown. Tap a cell to navigate to Messages
+/// with the time range filter pre-applied.
 class ActivityHeatmap extends ConsumerStatefulWidget {
   const ActivityHeatmap({super.key});
-
-  static const _cellSize = 10.0;
-  static const _cellGap = 2.0;
-  static const _rowStride = _cellSize + _cellGap;
 
   @override
   ConsumerState<ActivityHeatmap> createState() => _ActivityHeatmapState();
 }
 
+enum _Granularity { day, week, month, year }
+
+extension on _Granularity {
+  String get label => switch (this) {
+        _Granularity.day => 'Day',
+        _Granularity.week => 'Week',
+        _Granularity.month => 'Month',
+        _Granularity.year => 'Year',
+      };
+
+  /// Cell edge length in the grid, in logical pixels.
+  double get cellSize => switch (this) {
+        _Granularity.day => 10,
+        _Granularity.week => 18,
+        _Granularity.month => 32,
+        _Granularity.year => 56,
+      };
+
+  double get cellGap => switch (this) {
+        _Granularity.day => 2,
+        _Granularity.week => 3,
+        _Granularity.month => 4,
+        _Granularity.year => 6,
+      };
+}
+
 class _ActivityHeatmapState extends ConsumerState<ActivityHeatmap> {
-  int? _hoverOffset;
+  _Granularity _gran = _Granularity.day;
+  _Bucket? _hoverBucket;
   Offset? _hoverPos;
-  int? _pinOffset;
+  _Bucket? _pinBucket;
 
   @override
   Widget build(BuildContext context) {
-    final index = ref.watch(flowIndexProvider);
-    if (index == null || index.isEmpty) return const SizedBox.shrink();
+    final index = ref.watch(activityIndexProvider);
+    if (index.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
     final start = DateTime.utc(
-      index.minDate.year,
-      index.minDate.month,
-      index.minDate.day,
+      index.minDate!.year,
+      index.minDate!.month,
+      index.minDate!.day,
     );
-    final now = index.maxDate;
-    final lastDay = DateTime.utc(now.year, now.month, now.day);
-    final weeks = ((lastDay.difference(start).inDays + 7) / 7).ceil();
+    final end = DateTime.utc(
+      index.maxDate!.year,
+      index.maxDate!.month,
+      index.maxDate!.day,
+    );
 
-    // Bucket events per day.
-    final counts = <int, int>{};
-    var maxCount = 0;
-    for (final e in index.events) {
-      final d = DateTime.utc(e.date.year, e.date.month, e.date.day);
-      final offset = d.difference(start).inDays;
-      if (offset < 0) continue;
-      final v = (counts[offset] ?? 0) + 1;
-      counts[offset] = v;
-      if (v > maxCount) maxCount = v;
-    }
-
-    final activeOffset = _pinOffset ?? _hoverOffset;
+    final buckets = _makeBuckets(index, _gran, start, end);
+    if (buckets.isEmpty) return const SizedBox.shrink();
+    final maxCount = buckets.fold<int>(0, (m, b) => b.total > m ? b.total : m);
+    final active = _pinBucket ?? _hoverBucket;
 
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -76,44 +95,52 @@ class _ActivityHeatmapState extends ConsumerState<ActivityHeatmap> {
                   child: Text('Activity', style: theme.textTheme.titleMedium),
                 ),
                 Text(
-                  '${DateFormat.yMMM().format(start)} → ${DateFormat.yMMM().format(now)}',
+                  '${DateFormat.yMMM().format(start)} → ${DateFormat.yMMM().format(end)}',
                   style: theme.textTheme.labelSmall,
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 7 * ActivityHeatmap._rowStride + 42,
-              child: Scrollbar(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  reverse: true,
-                  child: _HeatmapPaintArea(
-                    start: start,
-                    weeks: weeks,
-                    counts: counts,
-                    maxCount: maxCount,
-                    hoverOffset: activeOffset,
-                    hoverPos: activeOffset != null ? _hoverPos : null,
-                    surface: theme.colorScheme.surfaceContainerHighest,
-                    primary: theme.colorScheme.primary,
-                    outline: theme.colorScheme.onSurface,
-                    inverseSurface: theme.colorScheme.inverseSurface,
-                    onInverseSurface: theme.colorScheme.onInverseSurface,
-                    onHoverChanged: (offset, pos) {
-                      setState(() {
-                        _hoverOffset = offset;
-                        _hoverPos = pos;
-                      });
-                    },
-                    onTap: (offset) {
-                      setState(() {
-                        _pinOffset = _pinOffset == offset ? null : offset;
-                      });
-                    },
-                  ),
-                ),
+            const SizedBox(height: 4),
+            Text(
+              'Messages, likes, comments, shares, applications, endorsements.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<_Granularity>(
+              segments: [
+                for (final g in _Granularity.values)
+                  ButtonSegment(value: g, label: Text(g.label)),
+              ],
+              selected: {_gran},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) => setState(() {
+                _gran = s.first;
+                _hoverBucket = null;
+                _pinBucket = null;
+              }),
+            ),
+            const SizedBox(height: 12),
+            _HeatmapGrid(
+              gran: _gran,
+              buckets: buckets,
+              maxCount: maxCount,
+              hoverBucket: active,
+              hoverPos: active != null ? _hoverPos : null,
+              surface: theme.colorScheme.surfaceContainerHighest,
+              primary: theme.colorScheme.primary,
+              outline: theme.colorScheme.onSurface,
+              inverseSurface: theme.colorScheme.inverseSurface,
+              onInverseSurface: theme.colorScheme.onInverseSurface,
+              onHover: (b, pos) => setState(() {
+                _hoverBucket = b;
+                _hoverPos = pos;
+              }),
+              onTap: (b) {
+                setState(() => _pinBucket = _pinBucket == b ? null : b);
+                _drillDown(context, b);
+              },
             ),
             const SizedBox(height: 8),
             Row(
@@ -138,7 +165,7 @@ class _ActivityHeatmapState extends ConsumerState<ActivityHeatmap> {
                 Text('More', style: theme.textTheme.labelSmall),
                 const Spacer(),
                 Text(
-                  _pinOffset != null ? 'Tap cell again to unpin' : 'Hover for details',
+                  'Tap a cell to view its messages',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -150,115 +177,294 @@ class _ActivityHeatmapState extends ConsumerState<ActivityHeatmap> {
       ),
     );
   }
+
+  void _drillDown(BuildContext context, _Bucket b) {
+    final from = _fmtDate(b.from);
+    final to = _fmtDate(b.to);
+    context.go('/messages?from=$from&to=$to');
+  }
 }
 
-/// MouseRegion + GestureDetector + CustomPaint for the heatmap grid. Hover
-/// tooltip is positioned inside this Stack so it scrolls with the content.
-class _HeatmapPaintArea extends StatelessWidget {
-  const _HeatmapPaintArea({
-    required this.start,
-    required this.weeks,
-    required this.counts,
+String _fmtDate(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// One bucket in the grid — holds aggregated counts per kind for its range.
+class _Bucket {
+  _Bucket({
+    required this.from,
+    required this.to,
+    required this.label,
+    required this.column,
+    required this.row,
+    required this.total,
+    required this.byKind,
+  });
+  final DateTime from;
+  final DateTime to;
+  final String label;
+  final int column;
+  final int row;
+  final int total;
+  final Map<ActivityKind, int> byKind;
+}
+
+List<_Bucket> _makeBuckets(
+  ActivityIndex index,
+  _Granularity gran,
+  DateTime start,
+  DateTime end,
+) {
+  switch (gran) {
+    case _Granularity.day:
+      return _dayBuckets(index, start, end);
+    case _Granularity.week:
+      return _weekBuckets(index, start, end);
+    case _Granularity.month:
+      return _monthBuckets(index, start, end);
+    case _Granularity.year:
+      return _yearBuckets(index, start, end);
+  }
+}
+
+int _epochDay(DateTime d) =>
+    DateTime.utc(d.year, d.month, d.day).millisecondsSinceEpoch ~/
+    Duration.millisecondsPerDay;
+
+Map<ActivityKind, int> _mergeCounts(
+  ActivityIndex index,
+  DateTime fromInclusive,
+  DateTime toInclusive,
+) {
+  final out = <ActivityKind, int>{};
+  final firstEpoch = _epochDay(fromInclusive);
+  final lastEpoch = _epochDay(toInclusive);
+  for (var d = firstEpoch; d <= lastEpoch; d++) {
+    final bucket = index.perDay[d];
+    if (bucket == null) continue;
+    for (final e in bucket.entries) {
+      out[e.key] = (out[e.key] ?? 0) + e.value;
+    }
+  }
+  return out;
+}
+
+int _sum(Map<ActivityKind, int> m) =>
+    m.values.fold<int>(0, (a, b) => a + b);
+
+List<_Bucket> _dayBuckets(ActivityIndex index, DateTime start, DateTime end) {
+  // Anchor to the week of [start] so columns are whole weeks.
+  final s = start.subtract(Duration(days: start.weekday % 7));
+  final weeks = ((end.difference(s).inDays + 7) / 7).ceil();
+  final out = <_Bucket>[];
+  for (var w = 0; w < weeks; w++) {
+    for (var d = 0; d < 7; d++) {
+      final day = s.add(Duration(days: w * 7 + d));
+      if (day.isBefore(start) || day.isAfter(end)) continue;
+      final counts = _mergeCounts(index, day, day);
+      final total = _sum(counts);
+      out.add(_Bucket(
+        from: day,
+        to: day,
+        label: DateFormat('EEE, d MMM yyyy').format(day),
+        column: w,
+        row: d,
+        total: total,
+        byKind: counts,
+      ));
+    }
+  }
+  return out;
+}
+
+List<_Bucket> _weekBuckets(ActivityIndex index, DateTime start, DateTime end) {
+  // Week = Monday-Sunday, Flutter weekday is 1..7 (Mon..Sun).
+  final firstMonday = start.subtract(Duration(days: start.weekday - 1));
+  final totalWeeks = ((end.difference(firstMonday).inDays + 7) / 7).ceil();
+  const rows = 5; // per column
+  final out = <_Bucket>[];
+  for (var w = 0; w < totalWeeks; w++) {
+    final from = firstMonday.add(Duration(days: w * 7));
+    final to = from.add(const Duration(days: 6));
+    if (to.isBefore(start) || from.isAfter(end)) continue;
+    final counts = _mergeCounts(index, from, to);
+    out.add(_Bucket(
+      from: from,
+      to: to,
+      label: 'Week of ${DateFormat('d MMM yyyy').format(from)}',
+      column: w ~/ rows,
+      row: w % rows,
+      total: _sum(counts),
+      byKind: counts,
+    ));
+  }
+  return out;
+}
+
+List<_Bucket> _monthBuckets(ActivityIndex index, DateTime start, DateTime end) {
+  final out = <_Bucket>[];
+  final firstYear = start.year;
+  final lastYear = end.year;
+  for (var y = firstYear; y <= lastYear; y++) {
+    for (var m = 1; m <= 12; m++) {
+      final from = DateTime.utc(y, m, 1);
+      final to = DateTime.utc(y, m + 1, 0); // day 0 = last day of prev month
+      if (to.isBefore(start) || from.isAfter(end)) continue;
+      final counts = _mergeCounts(index, from, to);
+      out.add(_Bucket(
+        from: from,
+        to: to,
+        label: DateFormat('MMMM yyyy').format(from),
+        column: m - 1, // months as columns
+        row: y - firstYear, // years as rows
+        total: _sum(counts),
+        byKind: counts,
+      ));
+    }
+  }
+  return out;
+}
+
+List<_Bucket> _yearBuckets(ActivityIndex index, DateTime start, DateTime end) {
+  final out = <_Bucket>[];
+  for (var y = start.year; y <= end.year; y++) {
+    final from = DateTime.utc(y, 1, 1);
+    final to = DateTime.utc(y, 12, 31);
+    final counts = _mergeCounts(index, from, to);
+    out.add(_Bucket(
+      from: from,
+      to: to,
+      label: '$y',
+      column: y - start.year,
+      row: 0,
+      total: _sum(counts),
+      byKind: counts,
+    ));
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Rendering
+
+class _HeatmapGrid extends StatelessWidget {
+  const _HeatmapGrid({
+    required this.gran,
+    required this.buckets,
     required this.maxCount,
-    required this.hoverOffset,
+    required this.hoverBucket,
     required this.hoverPos,
     required this.surface,
     required this.primary,
     required this.outline,
     required this.inverseSurface,
     required this.onInverseSurface,
-    required this.onHoverChanged,
+    required this.onHover,
     required this.onTap,
   });
 
-  final DateTime start;
-  final int weeks;
-  final Map<int, int> counts;
+  final _Granularity gran;
+  final List<_Bucket> buckets;
   final int maxCount;
-  final int? hoverOffset;
+  final _Bucket? hoverBucket;
   final Offset? hoverPos;
   final Color surface;
   final Color primary;
   final Color outline;
   final Color inverseSurface;
   final Color onInverseSurface;
-  final void Function(int? offset, Offset? pos) onHoverChanged;
-  final void Function(int offset) onTap;
+  final void Function(_Bucket? b, Offset? pos) onHover;
+  final void Function(_Bucket b) onTap;
 
   @override
   Widget build(BuildContext context) {
-    final stride = ActivityHeatmap._rowStride;
-    final gridWidth = weeks * stride;
-    final gridHeight = 7 * stride;
+    final stride = gran.cellSize + gran.cellGap;
+    final maxCol = buckets.fold<int>(0, (m, b) => b.column > m ? b.column : m) + 1;
+    final maxRow = buckets.fold<int>(0, (m, b) => b.row > m ? b.row : m) + 1;
+    final width = maxCol * stride;
+    final height = maxRow * stride;
 
-    int? cellAt(Offset local) {
-      final w = (local.dx / stride).floor();
-      final d = (local.dy / stride).floor();
-      if (w < 0 || w >= weeks || d < 0 || d >= 7) return null;
-      return w * 7 + d;
+    _Bucket? cellAt(Offset local) {
+      final col = (local.dx / stride).floor();
+      final row = (local.dy / stride).floor();
+      for (final b in buckets) {
+        if (b.column == col && b.row == row) return b;
+      }
+      return null;
     }
 
     return SizedBox(
-      width: gridWidth,
-      height: gridHeight + 42,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          MouseRegion(
-            onHover: (e) => onHoverChanged(cellAt(e.localPosition), e.localPosition),
-            onExit: (_) => onHoverChanged(null, null),
-            child: GestureDetector(
-              onTapDown: (details) {
-                final offset = cellAt(details.localPosition);
-                if (offset != null) {
-                  onTap(offset);
-                  onHoverChanged(offset, details.localPosition);
-                }
-              },
-              child: CustomPaint(
-                size: Size(gridWidth, gridHeight),
-                painter: _HeatmapPainter(
-                  start: start,
-                  weeks: weeks,
-                  counts: counts,
-                  maxCount: maxCount,
-                  hoverOffset: hoverOffset,
-                  surface: surface,
-                  primary: primary,
-                  outline: outline,
+      height: height + 18,
+      child: Scrollbar(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          reverse: gran == _Granularity.day,
+          child: SizedBox(
+            width: width,
+            height: height + 18,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                MouseRegion(
+                  onHover: (e) => onHover(cellAt(e.localPosition), e.localPosition),
+                  onExit: (_) => onHover(null, null),
+                  child: GestureDetector(
+                    onTapDown: (details) {
+                      final b = cellAt(details.localPosition);
+                      if (b != null) {
+                        onTap(b);
+                        onHover(b, details.localPosition);
+                      }
+                    },
+                    child: CustomPaint(
+                      size: Size(width, height),
+                      painter: _GridPainter(
+                        gran: gran,
+                        buckets: buckets,
+                        maxCount: maxCount,
+                        hoverBucket: hoverBucket,
+                        surface: surface,
+                        primary: primary,
+                        outline: outline,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                if (hoverBucket != null && hoverPos != null)
+                  _tooltipPositioned(
+                    hoverBucket!,
+                    hoverPos!,
+                    width,
+                    height,
+                  ),
+              ],
             ),
           ),
-          if (hoverOffset != null && hoverPos != null)
-            _tooltipPositioned(hoverOffset!, hoverPos!, gridWidth, gridHeight),
-        ],
+        ),
       ),
     );
   }
 
   Widget _tooltipPositioned(
-    int offset,
+    _Bucket b,
     Offset pos,
     double gridWidth,
     double gridHeight,
   ) {
-    final day = start.add(Duration(days: offset));
-    final count = counts[offset] ?? 0;
-    final dateStr = DateFormat('EEE, d MMM yyyy').format(day);
-    final label = count == 0
-        ? '$dateStr · no activity'
-        : '$dateStr · $count ${count == 1 ? 'message' : 'messages'}';
-
-    // Position the tooltip to the right of the cell when there's room;
-    // otherwise flip it to the left.
-    const tooltipW = 240.0;
+    final parts = <String>[b.label];
+    if (b.total == 0) {
+      parts.add('no activity');
+    } else {
+      for (final e in _sorted(b.byKind)) {
+        parts.add('${e.value} ${e.key.plural(e.value)}');
+      }
+    }
+    const tooltipW = 280.0;
     final preferRight = pos.dx + tooltipW + 16 < gridWidth;
     final left = preferRight ? pos.dx + 14 : pos.dx - tooltipW - 8;
-    final top = pos.dy < gridHeight / 2 ? pos.dy + 14 : pos.dy - 36;
+    final top = pos.dy < gridHeight / 2 ? pos.dy + 14 : pos.dy - 70;
 
     return Positioned(
-      left: left.clamp(0, gridWidth - tooltipW).toDouble(),
+      left: left.clamp(0, (gridWidth - tooltipW).clamp(0, double.infinity)).toDouble(),
       top: top.clamp(0, gridHeight + 24).toDouble(),
       child: IgnorePointer(
         child: Container(
@@ -275,89 +481,144 @@ class _HeatmapPaintArea extends StatelessWidget {
               ),
             ],
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: onInverseSurface,
-              fontSize: 12,
-              height: 1.3,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                parts.first,
+                style: TextStyle(
+                  color: onInverseSurface,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
+                ),
+              ),
+              for (final line in parts.skip(1))
+                Text(
+                  line,
+                  style: TextStyle(
+                    color: onInverseSurface,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  Iterable<MapEntry<ActivityKind, int>> _sorted(Map<ActivityKind, int> m) {
+    final list = m.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return list;
+  }
 }
 
-class _HeatmapPainter extends CustomPainter {
-  _HeatmapPainter({
-    required this.start,
-    required this.weeks,
-    required this.counts,
+class _GridPainter extends CustomPainter {
+  _GridPainter({
+    required this.gran,
+    required this.buckets,
     required this.maxCount,
-    required this.hoverOffset,
+    required this.hoverBucket,
     required this.surface,
     required this.primary,
     required this.outline,
   });
 
-  final DateTime start;
-  final int weeks;
-  final Map<int, int> counts;
+  final _Granularity gran;
+  final List<_Bucket> buckets;
   final int maxCount;
-  final int? hoverOffset;
+  final _Bucket? hoverBucket;
   final Color surface;
   final Color primary;
   final Color outline;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const cell = ActivityHeatmap._cellSize;
-    const gap = ActivityHeatmap._cellGap;
+    final cell = gran.cellSize;
+    final gap = gran.cellGap;
+    final stride = cell + gap;
     final logMax = maxCount == 0 ? 1.0 : log(maxCount + 1);
 
-    for (var w = 0; w < weeks; w++) {
-      for (var d = 0; d < 7; d++) {
-        final offset = w * 7 + d;
-        final count = counts[offset] ?? 0;
-        final intensity = count == 0
-            ? 0.0
-            : (log(count + 1) / logMax).clamp(0.1, 1.0);
-        final color = count == 0
-            ? surface
-            : Color.lerp(surface, primary, intensity)!;
-        final rect = Rect.fromLTWH(
-          w * (cell + gap),
-          d * (cell + gap),
-          cell,
-          cell,
-        );
+    for (final b in buckets) {
+      final intensity = b.total == 0
+          ? 0.0
+          : (log(b.total + 1) / logMax).clamp(0.1, 1.0);
+      final color = b.total == 0 ? surface : Color.lerp(surface, primary, intensity)!;
+      final rect = Rect.fromLTWH(
+        b.column * stride,
+        b.row * stride,
+        cell,
+        cell,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(cell / 5)),
+        Paint()..color = color,
+      );
+      if (b == hoverBucket) {
         canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, const Radius.circular(2)),
-          Paint()..color = color,
-        );
-        if (hoverOffset == offset) {
-          final stroke = Paint()
+          RRect.fromRectAndRadius(
+            rect.inflate(1.5),
+            Radius.circular(cell / 4),
+          ),
+          Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5
-            ..color = outline;
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(
-              rect.inflate(1),
-              const Radius.circular(3),
+            ..color = outline,
+        );
+      }
+      // Month/year cells get the count written inside.
+      if (gran == _Granularity.month || gran == _Granularity.year) {
+        if (b.total > 0) {
+          final tp = TextPainter(
+            text: TextSpan(
+              text: gran == _Granularity.year
+                  ? b.total.toString()
+                  : _shortCount(b.total),
+              style: TextStyle(
+                color: intensity > 0.5
+                    ? _contrastingColor(primary)
+                    : _contrastingColor(surface),
+                fontSize: gran == _Granularity.year ? 14 : 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            stroke,
+            textDirection: ui.TextDirection.ltr,
+            textAlign: TextAlign.center,
+          )..layout(maxWidth: cell);
+          tp.paint(
+            canvas,
+            Offset(
+              b.column * stride + (cell - tp.width) / 2,
+              b.row * stride + (cell - tp.height) / 2,
+            ),
           );
         }
       }
     }
   }
 
+  String _shortCount(int n) {
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1)}k';
+    return n.toString();
+  }
+
+  Color _contrastingColor(Color bg) {
+    // Rough luminance via sRGB components; good enough for chart labels.
+    final r = ((bg.r) * 255).round();
+    final g = ((bg.g) * 255).round();
+    final b = ((bg.b) * 255).round();
+    final lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+    return lum > 0.6 ? Colors.black87 : Colors.white;
+  }
+
   @override
-  bool shouldRepaint(covariant _HeatmapPainter old) =>
-      old.counts != counts ||
-      old.weeks != weeks ||
+  bool shouldRepaint(covariant _GridPainter old) =>
+      old.buckets != buckets ||
+      old.gran != gran ||
+      old.hoverBucket != hoverBucket ||
       old.primary != primary ||
-      old.surface != surface ||
-      old.hoverOffset != hoverOffset;
+      old.surface != surface;
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/linkedin_links.dart';
@@ -50,6 +51,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   _Period _period = _Period.all;
   RangeValues? _customRange; // in millisSinceEpoch
   bool _filtersExpanded = false;
+  String _urlRangeKey = ''; // detect fresh ?from=&to= param changes
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +60,35 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       return const Center(child: Text('No archive loaded.'));
     }
     final meName = ref.watch(flowIndexProvider)?.meName ?? '';
+
+    // Honour ?from=YYYY-MM-DD&to=YYYY-MM-DD passed via go_router (e.g. from
+    // the Activity heatmap drill-down). The range auto-switches to Custom
+    // whenever a new from/to pair arrives.
+    final goState = GoRouterState.of(context);
+    final fromParam = goState.uri.queryParameters['from'];
+    final toParam = goState.uri.queryParameters['to'];
+    final rangeKey = '${fromParam ?? ''}..${toParam ?? ''}';
+    if (rangeKey.isNotEmpty && rangeKey != '..' && rangeKey != _urlRangeKey) {
+      _urlRangeKey = rangeKey;
+      final f = DateTime.tryParse(fromParam ?? '');
+      final t = DateTime.tryParse(toParam ?? '');
+      if (f != null && t != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() {
+            _period = _Period.custom;
+            _customRange = RangeValues(
+              f.millisecondsSinceEpoch.toDouble(),
+              t.add(const Duration(days: 1))
+                  .millisecondsSinceEpoch
+                  .toDouble() -
+                  1,
+            );
+            _filtersExpanded = true;
+          });
+        });
+      }
+    }
 
     final bounds = _periodBounds(archive);
     final conversations = _buildConversations(
