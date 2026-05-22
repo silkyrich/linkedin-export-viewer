@@ -1,0 +1,45 @@
+name: Redirect old GitHub Pages URL to Cloudflare
+
+# LinkedOut! has migrated to Cloudflare Pages:
+#   https://linkedout.richmorgan.co.uk
+#
+# This workflow publishes a path-preserving redirect stub at the old
+# GitHub Pages URL (https://silkyrich.github.io/linkedin-export-viewer/)
+# so existing links keep working.
+#
+# The real build now deploys to Cloudflare via deploy-cloudflare.yml.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gh-pages-redirect/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy-redirect:
+    name: Publish redirect stub to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload redirect stub
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: gh-pages-redirect/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

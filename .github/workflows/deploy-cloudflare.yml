@@ -1,0 +1,69 @@
+name: Build & Deploy to Cloudflare Pages
+
+# Builds the LinkedOut! Flutter web app and deploys it to the Cloudflare
+# Pages project "linkedout" → https://linkedout.richmorgan.co.uk
+#
+# Replaces the old GitHub Pages app deploy. The old GitHub Pages URL now
+# serves a redirect stub published by pages.yml.
+#
+# Requires repo secrets:
+#   CLOUDFLARE_API_TOKEN  — token with "Cloudflare Pages: Edit"
+#   CLOUDFLARE_ACCOUNT_ID — the account id
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'web/**'
+      - 'fixtures/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/deploy-cloudflare.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: cf-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.x
+
+      - run: flutter pub get
+      - run: flutter test
+
+      - name: Build web (root base href)
+        run: |
+          flutter build web --release --base-href "/" --pwa-strategy=none
+
+      - name: Cache-bust + SPA fallback
+        run: |
+          SHA=${GITHUB_SHA:0:8}
+          sed -i \
+            "s|\"mainJsPath\":\"main.dart.js\"|\"mainJsPath\":\"main.dart.js?v=$SHA\"|" \
+            build/web/flutter_bootstrap.js
+          sed -i \
+            "s|<meta charset=\"UTF-8\">|<meta charset=\"UTF-8\">\n  <meta http-equiv=\"Cache-Control\" content=\"no-cache, no-store, must-revalidate\">\n  <meta name=\"x-linkedout-version\" content=\"$SHA\">|" \
+            build/web/index.html
+          printf '/*    /index.html   200\n' > build/web/_redirects
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Explicit ASCII commit message + --commit-dirty avoids wrangler's
+          # git auto-detection choking on non-ASCII commit messages.
+          command: >-
+            pages deploy build/web --project-name=linkedout --branch=main
+            --commit-dirty=true --commit-message="CI deploy ${{ github.sha }}"
